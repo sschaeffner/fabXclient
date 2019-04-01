@@ -1,179 +1,634 @@
-#include <Arduino.h>
-#include <SPI.h>
-#include <MFRC522.h>
-
 #include "main.h"
 
-#define SS_PIN 22
-#define RST_PIN 21
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PSK;
 
-MFRC522 mfrc522(SS_PIN, RST_PIN);
+wl_status_t wifiStatus = WL_IDLE_STATUS;
+unsigned long lastWifiReconnect = 0;
 
-MFRC522::StatusCode status; 
-MFRC522::Uid myUid;
-MFRC522::MIFARE_Key key;
+bool ntpSynced = false;
+
+bool redrawRequest, redrawing;
+
+int configReadTry = 0;
+bool configRead;
+
+CardReader cardReader;
+Config config;
+Backend backend;
+
+Adafruit_MCP23008 gpio0, gpio1;
+
+State state;
+MFRC522::Uid cardId;
+int lastTimeCardRead = 0;;
+
+int lastTimeToolSelectorChanged = 0;
+int toolSelector;
+int accessToolId;
+
+bool countDownDisplayed = false;
+
+AudioGeneratorWAV *wav;
+AudioFileSourceSD *file;
+AudioOutputI2S *out;
+TaskHandle_t taskRecSound;
+
+void i2cscan(){
+	Serial.println(" Scanning I2C Addresses");
+	uint8_t cnt=0;
+	for(uint8_t i=0;i<128;i++){
+		Wire.beginTransmission(i);
+		uint8_t ec = Wire.endTransmission(true);
+		if(ec == 0){
+			if(i<16)Serial.print('0');
+			Serial.print(i,HEX);
+			cnt++;
+		}
+		else Serial.print("..");
+		Serial.print(' ');
+		if ((i & 0x0f) == 0x0f)Serial.println();
+	}
+	Serial.print("Scan Completed, ");
+	Serial.print(cnt);
+	Serial.println(" I2C Devices found.");
+}
 
 void setup() {
 	Serial.begin(115200);
+	Serial.println("Hello World");
+
+	WiFi.begin(ssid, password);
 	SPI.begin();
+	M5.begin();
 
-	Serial.println("\n\nHello World");
+	if (SD.begin(TFCARD_CS_PIN, SPI, 40000000)) {
+		Serial.println("SD Card begin successful");
+	} else {
+		Serial.println("SD Card begin NOT successful");
+	}
 
-	mfrc522.PCD_Init(SS_PIN, RST_PIN);
-	mfrc522.PCD_DumpVersionToSerial();
+	//M5.Speaker.tone(440, 100);
 
-	key.keyByte[0] = 0xFF;
-	key.keyByte[1] = 0xFF;
-	key.keyByte[2] = 0xFF;
-	key.keyByte[3] = 0xFF;
-	key.keyByte[4] = 0xFF;
-	key.keyByte[5] = 0xFF;
+	Wire.begin();
+	i2cscan();
+	Serial.println();
 
-	/*key.keyByte[0] = 0x00;
-	key.keyByte[1] = 0x00;
-	key.keyByte[2] = 0x00;
-	key.keyByte[3] = 0x00;
-	key.keyByte[4] = 0x00;
-	key.keyByte[5] = 0x00;*/
+	Serial.println("GPIO Expander IODIR");
+	gpio0.begin(0);
+	gpio0.writeGPIO(0xFF);
+	gpio0.pinMode(0, OUTPUT);
+	gpio0.pinMode(1, OUTPUT);
+	gpio0.pinMode(2, OUTPUT);
+	gpio0.pinMode(3, OUTPUT);
+	gpio0.pinMode(4, OUTPUT);
+	gpio0.pinMode(5, OUTPUT);
+	gpio0.pinMode(6, OUTPUT);
+	gpio0.pinMode(7, OUTPUT);
+	
+
+	gpio1.begin(1);
+	gpio1.writeGPIO(0xFF);
+	gpio1.pinMode(0, OUTPUT);
+	gpio1.pinMode(1, OUTPUT);
+	gpio1.pinMode(2, OUTPUT);
+	gpio1.pinMode(3, OUTPUT);
+	gpio1.pinMode(4, OUTPUT);
+	gpio1.pinMode(5, OUTPUT);
+	gpio1.pinMode(6, OUTPUT);
+	gpio1.pinMode(7, OUTPUT);
+	
+
+	Serial.println("GPIO Expander IODIR done");
+
+
+	backend.begin();
+	cardReader.begin();
+	cardId.size = 0;
+
+	setup_secret();
+
+	lastWifiReconnect = millis();
+
+	//disable Bluetooth
+	btStop();
+
+	configRead = false;
+
+	Serial.printf("deviceMac:%s\n", backend.deviceMac.c_str());
+
+	redrawRequest = true;
+	redrawing = false;
+
+	M5.Lcd.fillCircle(80, 120, 20, TFT_LIGHTGREY);
+	M5.Lcd.fillCircle(160, 120, 20, TFT_LIGHTGREY);
+	M5.Lcd.fillCircle(240, 120, 20, TFT_LIGHTGREY);
+}
+
+void setup_secret() {
+	EEPROM.begin(SECRET_LENGTH + 1);
+	byte magic = EEPROM.readByte(0);
+
+	if (magic != 0x42) {
+		Serial.println("GENERATING NEW SECRET!");
+		//generate new secret
+		EEPROM.writeByte(0, 0x42);
+		for (int i = 0; i < SECRET_LENGTH; i++) {
+			EEPROM.writeByte(i + 1, (byte) esp_random());
+		}
+	} else {
+		Serial.println("READING SECRET");
+	}
+
+	char buffer[3];
+
+	for (int i = 0; i < SECRET_LENGTH; i++) {
+		byte b = EEPROM.readByte(i + 1);
+		sprintf(buffer, "%02x", b);
+		backend.secret += buffer;
+	}
+
+	EEPROM.end();
 }
 
 void loop() {
-	// Reset baud rates
-	mfrc522.PCD_WriteRegister(MFRC522::TxModeReg, 0x00);
-	mfrc522.PCD_WriteRegister(MFRC522::RxModeReg, 0x00);
-	// Reset ModWidthReg
-	mfrc522.PCD_WriteRegister(MFRC522::ModWidthReg, 0x26);
+	M5.update();
 
-	//reset uid buffer
-	myUid.size = 0;
-	myUid.uidByte[0] = 0;
-	myUid.uidByte[1] = 0;
-	myUid.uidByte[2] = 0;
-	myUid.uidByte[3] = 0;
-	myUid.uidByte[4] = 0;
-	myUid.uidByte[5] = 0;
-	myUid.uidByte[6] = 0;
-	myUid.uidByte[7] = 0;
-	myUid.uidByte[8] = 0;
-	myUid.uidByte[9] = 0;
-	myUid.sak = 0;
+	redrawing = redrawRequest;
+	redrawRequest = false;
 
-	byte waBufferATQA[2];
-	byte waBufferSize = 2;
+	if (redrawing) M5.Lcd.clearDisplay();
 
-	waBufferATQA[0] = 0x00;
-	waBufferATQA[1] = 0x00;
+	loop_bg();
+	loop_wifi();
+	loop_ntp();
+	loop_config();
+	loop_access();
 
-	//TODO: check whether wakeupA also works
-	status = mfrc522.PICC_WakeupA(waBufferATQA, &waBufferSize);
-	Serial.print("WakeupA status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+	delay(1);
+	yield();
+}
 
-	if (status != MFRC522::STATUS_OK) {
-		delay(1000);
-		return;
+void loop_bg() {
+	if (state == IDLE) {
+		if (redrawing) {
+			M5.Lcd.drawBmpFile(SD, "/bg.bmp", 0, 0);
+		}
+	}
+}
+
+bool loop_wifi() {
+	wl_status_t status = WiFi.status();
+	if (status != wifiStatus) {
+		redrawRequest = true;
+		wifiStatus = status;
 	}
 
-	Serial.print("ATQA: ");
-	dump_byte_array(waBufferATQA, waBufferSize);
-	Serial.println();
-
-	status = mfrc522.PICC_Select(&myUid, 0);
-	Serial.print("Select status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
-	if (status != MFRC522::STATUS_OK) {
-		delay(1000);
-		return;
+	if (redrawing) {
+		M5.Lcd.setTextColor(TFT_WHITE);
+		M5.Lcd.setTextDatum(TR_DATUM);
+		M5.Lcd.setTextSize(1);
+		M5.Lcd.drawString(backend.deviceMac.c_str(), 320, 0);
 	}
 
-	Serial.print("Uid: ");
-	dump_byte_array(myUid.uidByte, myUid.size);
-	Serial.println();
+	if (WiFi.status() == WL_CONNECTED) {
+		if (redrawing) {
+			M5.Lcd.setTextColor(TFT_GREEN);
+			M5.Lcd.setTextDatum(TR_DATUM);
+			M5.Lcd.setTextSize(1);
+			M5.Lcd.drawString("WiFi CONN", 320, 12);
+		}
+		
+		return true;
+	} else {
+		if (redrawing) {
+			M5.Lcd.setTextColor(TFT_RED);
+			M5.Lcd.setTextDatum(TR_DATUM);
+			M5.Lcd.setTextSize(1);
+			M5.Lcd.drawString("WiFi DISC", 320, 12);
+		}
 
-	status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, 0, &key, &myUid);
-	Serial.print("Authenticate status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+		Serial.println("WiFi not connected.");
 
-	byte rBuffer[18];
-	byte rBufferSize = 18;
+		if (millis() - lastWifiReconnect > WIFI_RECONNECT_TIME) {
+			Serial.println("WiFi: Trying to reconnect...");
 
-	rBuffer[0] = 0x00;
-	rBuffer[1] = 0x00;
-	rBuffer[2] = 0x00;
-	rBuffer[3] = 0x00;
-	rBuffer[4] = 0x00;
-	rBuffer[5] = 0x00;
-	rBuffer[6] = 0x00;
-	rBuffer[7] = 0x00;
-	rBuffer[8] = 0x00;
-	rBuffer[9] = 0x00;
-	rBuffer[10] = 0x00;
-	rBuffer[11] = 0x00;
-	rBuffer[12] = 0x00;
-	rBuffer[13] = 0x00;
-	rBuffer[14] = 0x00;
-	rBuffer[15] = 0x00;
-	rBuffer[16] = 0x00;
+			WiFi.disconnect(true);
+			WiFi.mode(WIFI_OFF);
+			WiFi.mode(WIFI_STA);
+			WiFi.begin(ssid, password);
 
-	// SECTOR 0
-	// BLOCK 0
-	status = mfrc522.MIFARE_Read(0, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+			lastWifiReconnect = millis();
+		} else {
+			Serial.println("WiFi: Last reconnect try within the last 5 seconds.");
+		}
 
-	Serial.print("Sector 0 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
+		return WiFi.status() == WL_CONNECTED;
+	}
+}
 
-	// BLOCK 1
-	status = mfrc522.MIFARE_Read(1, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+void loop_ntp() {
+	if (wifiStatus == WL_CONNECTED && !ntpSynced) {
+		Serial.println("attempting NTP sync...");
+		struct tm local;
+		configTzTime(TZ_INFO, NTP_SERVER);
+		ntpSynced = getLocalTime(&local, 5000);
+		if (ntpSynced) {
+			Serial.println(&local, "NTP: Date: %d.%m.%y Time: %H:%M:%S");
+		}
+		redrawRequest = true;
+	}
+	if (redrawing && !ntpSynced) {
+		M5.Lcd.setTextDatum(CC_DATUM);
+		M5.Lcd.setTextColor(TFT_WHITE);
+		M5.Lcd.setTextSize(3);
+		M5.Lcd.drawString("NTP SYNC...", 160, 120);
+	}
+}
 
-	Serial.print("Sector 1 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
+void loop_config() {
+	if (wifiStatus == WL_CONNECTED && !configRead) {
+		++configReadTry;
+		configRead = backend.readConfig(config, configReadTry >= CONFIG_TRIES_BEFORE_CACHE);
+		backend.downloadBgImage(config);
+		redrawRequest = true;
+	}
+	if (redrawing) {
+		if (configRead) {
+			M5.Lcd.setTextColor(0xFC82);
+			M5.Lcd.setTextDatum(TL_DATUM);
+			M5.Lcd.setTextSize(2);
+			M5.Lcd.drawString(config.deviceName, 0, 0);
+		} else {
+			M5.Lcd.setTextDatum(CC_DATUM);
+			M5.Lcd.setTextColor(TFT_WHITE);
+			M5.Lcd.setTextSize(3);
+			M5.Lcd.drawString("SELF CONFIG", 160, 120);
+		}
+	}
+}
 
-	// BLOCK 2
-	status = mfrc522.MIFARE_Read(2, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+void loop_access() {
+	if (state >= CARD_ID_KNOWN && redrawing) {
+		char cardIdBuffer[32];
+		if (cardId.size == 4) {
+			sprintf(cardIdBuffer, "0x%02X%02X%02X%02X", cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3]);
+		} else if (cardId.size == 7) {
+			sprintf(cardIdBuffer, "0x%02X%02X%02X%02X%02X%02X%02X", cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3], cardId.uidByte[4], cardId.uidByte[5], cardId.uidByte[6]);
+		}
+		
 
-	Serial.print("Sector 2 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
+		M5.Lcd.setTextColor(TFT_WHITE);
+		M5.Lcd.setTextDatum(TL_DATUM);
+		M5.Lcd.setTextSize(1);
+		M5.Lcd.drawString(cardIdBuffer, 0, 20);
+	}
 
-	// BLOCK 3
-	status = mfrc522.MIFARE_Read(3, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+	if (state == IDLE) {
+		cardId.size = 0;
+		lastTimeCardRead = 0;
+		lastTimeToolSelectorChanged = 0;
 
-	Serial.print("Sector 3 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
+		cardReader.begin();
+		delay(10);
+        int success = cardReader.read(false);
 
-	//SECTOR 1
-	status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, 4, &key, &myUid);
-	Serial.print("Authenticate status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+        if (success > 0) {
+			cardId.size = cardReader.uid.size;
+			lastTimeCardRead = millis();
 
-	// BLOCK 4
-	status = mfrc522.MIFARE_Read(4, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+			for (int i = 0; i < cardId.size; i++) {
+				cardId.uidByte[i] = cardReader.uid.uidByte[i];
+			}
 
-	Serial.print("Sector 4 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
+            state = CARD_ID_KNOWN;
+        }
+    }
 
-	
-	mfrc522.PCD_StopCrypto1();
-	mfrc522.PICC_HaltA();
+    if (state == CARD_ID_KNOWN) {
+		M5.Lcd.fillCircle(80, 120, 20, TFT_WHITE);
+		M5.Lcd.fillCircle(160, 120, 20, TFT_WHITE);
+		M5.Lcd.fillCircle(240, 120, 20, TFT_WHITE);
 
-	Serial.print("\n\n\n");
+		playRecSound();
 
-	delay(2000);
+		if (backend.toolsWithAccess(config, cardId, cardReader.cardSecret)) {
+			state = ACCESS_KNOWN;
+		} else {
+			state = IDLE;
+			redrawRequest = true;
+		}
+    }
+
+	if (state == ACCESS_KNOWN) {
+		if (backend.accessToolsAmount == 1) {
+			accessToolId = backend.accessTools[0];
+
+			int accessToolIndex = toolNrToToolIndex(accessToolId);
+			String toolName = config.toolNames[accessToolIndex];
+
+			Serial.printf("only one tool available, skipping tool selection\n");
+			Serial.printf("accessToolId: %i\n", accessToolId);
+			Serial.printf("accessToolIndex: %i\n", accessToolIndex);
+			Serial.printf("accessToolName: %s\n", toolName.c_str());
+
+			switch (config.toolModes[accessToolIndex]) {
+				case KEEP:
+					state = KEEP_CARD;
+					break;
+				case UNLOCK:
+					state = UNLOCK_TOOL;
+					break;
+			}
+			redrawRequest = true;
+		} else if (backend.accessToolsAmount > 1) {
+			state = CHOOSE_TOOL;
+			toolSelector = 0;
+			redrawRequest = true;
+			lastTimeToolSelectorChanged = millis();
+			Serial.printf("accessToolsAmount %i\n", backend.accessToolsAmount);
+		} else {
+			/*M5.Speaker.begin();
+			M5.Speaker.tone(1047, 1);
+			delay(150);
+			M5.Speaker.tone(784, 1);
+			delay(150);
+			M5.Speaker.tone(659, 1);
+			delay(150);
+			M5.Speaker.tone(523, 1);
+			delay(150);
+			M5.Speaker.mute();
+			M5.Speaker.end(); */
+
+			Serial.printf("accessToolsAmount zero\n");
+			state = IDLE;
+			redrawRequest = true;
+		}
+	}
+
+	if (state == CHOOSE_TOOL) {
+		bool listRedraw = false;
+		if (M5.BtnA.wasPressed()) {
+			if (toolSelector > 0) --toolSelector;
+			//redrawRequest = true;
+			listRedraw = true;
+			lastTimeToolSelectorChanged = millis();
+		}
+		if (M5.BtnB.wasPressed()) {
+			if (toolSelector < backend.accessToolsAmount - 1) ++toolSelector;
+			//redrawRequest = true;
+			listRedraw = true;
+			lastTimeToolSelectorChanged = millis();
+		}
+		if (M5.BtnC.wasPressed()) {
+			accessToolId = backend.accessTools[toolSelector];
+			int accessToolIndex = toolNrToToolIndex(accessToolId);
+
+			switch (config.toolModes[accessToolIndex]) {
+				case KEEP:
+					state = KEEP_CARD;
+					break;
+				case UNLOCK:
+					state = UNLOCK_TOOL;
+					break;
+			}
+			redrawRequest = true;
+		}
+
+		if (millis() > lastTimeToolSelectorChanged + 10000) {
+			state = IDLE;
+			redrawRequest = true;
+		}
+
+		if (redrawing || listRedraw) {
+			M5.Lcd.setTextDatum(BC_DATUM);
+			M5.Lcd.setTextColor(TFT_WHITE);
+			M5.Lcd.setTextSize(1);
+			M5.Lcd.drawString("[up]", 65, 240);
+			M5.Lcd.drawString("[down]", 160, 240);
+			M5.Lcd.drawString("[select]", 255, 240);
+		
+			M5.Lcd.setTextSize(3);
+			int fontHeight = M5.Lcd.fontHeight(M5.Lcd.textfont);
+			fontHeight = fontHeight + (fontHeight >> 1);// fontHeight *= 1.5
+
+			int nrActualTools = 0;
+
+			for (int i = 0; i < backend.accessToolsAmount; i++) {
+				int toolNr = backend.accessTools[i];
+				int toolIndex = toolNrToToolIndex(toolNr);
+
+				if (toolIndex >= 0) {
+					if (i == toolSelector) {
+						M5.Lcd.setTextColor(TFT_GREEN);
+					} else {
+						M5.Lcd.setTextColor(TFT_WHITE);
+					}
+
+					if (nrActualTools < 5) {
+						M5.Lcd.setTextDatum(TL_DATUM);
+						M5.Lcd.drawString(config.toolNames[toolIndex], 0, 36 + (fontHeight * i));
+					} else {
+						M5.Lcd.setTextDatum(TR_DATUM);
+						M5.Lcd.drawString(config.toolNames[toolIndex], 320, 36 + (fontHeight * (i - 5)));
+					}
+					
+					nrActualTools++;
+				}
+			}
+		}
+	}
+
+	if (state == UNLOCK_TOOL) {
+		Serial.printf("UNLOCK TOOL: accessToolId=%i\n", accessToolId);
+
+		int accessToolIndex = toolNrToToolIndex(accessToolId);
+		int accessToolPin = config.toolPins[accessToolIndex];
+
+		Serial.printf("UNLOCK TOOL: accessToolIndex=%i\n", accessToolIndex);
+
+		Serial.print("UNLOCK TOOL: toolName=");
+		Serial.println(config.toolNames[accessToolIndex]);
+
+		Serial.printf("UNLOCK TOOL: pin=%i\n", accessToolPin);
+
+		gpio1.digitalWrite(accessToolPin - 1, LOW);
+
+		M5.Lcd.clearDisplay();
+		M5.Lcd.setTextDatum(CC_DATUM);
+		M5.Lcd.setTextColor(TFT_GREEN);
+		M5.Lcd.setTextSize(3);
+		M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
+
+		delay(200);
+
+		gpio1.writeGPIO(0xFF);
+		
+		state = IDLE;
+		redrawRequest = true;
+	}
+
+	if (state == KEEP_CARD) {
+		Serial.printf("KEEP TOOL: accessToolId=%i\n", accessToolId);
+
+		int accessToolIndex = toolNrToToolIndex(accessToolId);
+		int accessToolPin = config.toolPins[accessToolIndex];
+
+		Serial.printf("KEEP TOOL: accessToolIndex=%i\n", accessToolIndex);
+		
+		Serial.print("KEEP TOOL: toolName=");
+		Serial.println(config.toolNames[accessToolIndex]);
+
+		Serial.printf("KEEP TOOL: pin=%i\n", accessToolPin);
+
+		//TURN ON TOOL
+		gpio1.digitalWrite(accessToolPin - 1, LOW);
+
+		state = KEEP_CARD_STILL;
+	}
+
+	if (state == KEEP_CARD_STILL) {
+		int accessToolIndex = toolNrToToolIndex(accessToolId);
+
+		if (redrawing) {
+			M5.Lcd.setTextDatum(CC_DATUM);
+			M5.Lcd.setTextColor(TFT_GREEN);
+			M5.Lcd.setTextSize(3);
+			M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
+		}
+
+		if (millis() > lastTimeCardRead + 3000) {
+			Serial.printf("KEEP CARD PRECHECK\n");
+
+			cardReader.begin();
+        	int success = cardReader.read(false);
+
+			if (success > 0) {
+				// check if read card id and access card id are the same (no card hot-swap)
+				for (int i = 0; i < cardId.size; i++) {
+					if (cardId.uidByte[i] != cardReader.uid.uidByte[i]) {
+						success = 0;
+					}
+				}
+			}
+
+			if (success > 0) { // card id is still the same
+				cardId.size = cardReader.uid.size;
+				lastTimeCardRead = millis();
+
+				if (countDownDisplayed) {
+					redrawRequest = true;
+					countDownDisplayed = false;
+				}
+			} else { // card not found
+				M5.Lcd.clearDisplay(TFT_RED);
+
+				int secsLeft = 10 - (millis() - lastTimeCardRead) / 1000;
+
+				char countDown[5];
+				sprintf(countDown, "%i", secsLeft);
+
+				M5.Lcd.setTextDatum(CC_DATUM);
+				M5.Lcd.setTextColor(TFT_BLACK);
+				M5.Lcd.setTextSize(7);
+				M5.Lcd.drawString(countDown, 160, 120);
+
+				countDownDisplayed = true;
+			}
+		}
+		if (millis() > lastTimeCardRead + 10000) {
+			state = CHECK_CARD;
+		}
+	}
+
+	if (state == CHECK_CARD) {
+		Serial.printf("CHECK_CARD\n");
+
+		cardReader.begin();
+        int success = cardReader.read(false);
+
+        if (success > 0) {
+			// check if read card id and access card id are the same (no card hot-swap)
+			for (int i = 0; i < cardId.size; i++) {
+				if (cardId.uidByte[i] != cardReader.uid.uidByte[i]) {
+					success = 0;
+				}
+			}
+		}
+
+		if (success > 0) { // card id is still the same
+			cardId.size = cardReader.uid.size;
+			lastTimeCardRead = millis();
+			
+			state = KEEP_CARD_STILL;
+		} else { // card no longer there or card id changed
+			cardId.size = 0;
+			lastTimeCardRead = 0;
+
+			gpio1.writeGPIO(0xFF);
+
+			state = IDLE;
+		}
+		redrawRequest = true;
+	}
+}
+
+int toolNrToToolIndex(int toolNr) {
+	for (int i = 0; i < config.toolAmount; i++) {
+		if (config.toolIds[i] == toolNr) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void playRecSound() {
+	xTaskCreate(
+      playRecSoundT, /* Function to implement the task */
+      "playRecSoundT", /* Name of the task */
+      10000,  /* Stack size in words */
+      NULL,  /* Task input parameter */
+      100,  /* Priority of the task */
+      &taskRecSound);  /* Task handle. */
+}
+
+void playRecSoundT(void * param) {
+	//C5 523.25
+	//E5 659.25
+	//G5 783.99
+	//C6 1046.50
+	M5.Speaker.begin();
+	M5.Speaker.setVolume(1);
+	M5.Speaker.tone(523, 1);
+	delay(150);
+	M5.Speaker.tone(659, 1);
+	delay(150);
+	M5.Speaker.tone(784, 1);
+	delay(150);
+	M5.Speaker.tone(1047, 1);
+	delay(150);
+	M5.Speaker.mute();
+	M5.Speaker.end();
+
+	vTaskDelete(NULL);
+}
+
+void playRecSoundT2(void * param) {
+	file = new AudioFileSourceSD("/recSound.wav");
+	out = new AudioOutputI2S(0, 1); // Output to builtInDAC
+	out->SetOutputModeMono(true);
+	wav = new AudioGeneratorWAV();
+	wav->begin(file, out);
+
+	while (wav->isRunning()) {
+		if (!wav->loop()) wav->stop();
+	}
+	Serial.printf("WAV done\n");
+	wav->stop();
+	out->stop();
+	file->close();
+
+	vTaskDelete(NULL);
 }
 
 /*
@@ -183,5 +638,12 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
     for (byte i = 0; i < bufferSize; i++) {
         Serial.print(buffer[i] < 0x10 ? " 0" : " ");
         Serial.print(buffer[i], HEX);
+    }
+}
+
+void lcd_dump_byte_array(byte *buffer, byte bufferSize) {
+	for (byte i = 0; i < bufferSize; i++) {
+        M5.Lcd.print(buffer[i] < 0x10 ? " 0" : " ");
+        M5.Lcd.print(buffer[i], HEX);
     }
 }

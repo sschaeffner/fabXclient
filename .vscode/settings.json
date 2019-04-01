@@ -3,5 +3,8 @@
         "PATH": "/Users/sschaeffner/.platformio/penv/bin:/Users/sschaeffner/.platformio/penv:/Users/sschaeffner/perl5/bin:/usr/local/sbin:/Users/sschaeffner/dev/exifTool:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/TeX/texbin:/usr/local/MacGPG2/bin:/opt/X11/bin:/Applications/Wireshark.app/Contents/MacOS",
         "PLATFORMIO_CALLER": "vscode"
     },
-    "C_Cpp.intelliSenseEngineFallback": "Enabled"
+    "C_Cpp.intelliSenseEngineFallback": "Enabled",
+    "files.associations": {
+        "esp32-hal-bt.c": "cpp"
+    }
 }

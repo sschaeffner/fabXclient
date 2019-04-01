@@ -1,0 +1,3 @@
+[submodule "lib/rc522-ultralight-c"]
+	path = lib/rc522-ultralight-c
+	url = git@github.com:sschaeffner/rc522-ultralight-c.git
