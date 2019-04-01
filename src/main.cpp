@@ -64,7 +64,6 @@ void loop() {
 	waBufferATQA[0] = 0x00;
 	waBufferATQA[1] = 0x00;
 
-	//TODO: check whether wakeupA also works
 	status = mfrc522.PICC_WakeupA(waBufferATQA, &waBufferSize);
 	Serial.print("WakeupA status = ");
 	Serial.println(MFRC522::GetStatusCodeName(status));
@@ -91,89 +90,36 @@ void loop() {
 	dump_byte_array(myUid.uidByte, myUid.size);
 	Serial.println();
 
-	status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, 0, &key, &myUid);
-	Serial.print("Authenticate status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
 	byte rBuffer[18];
 	byte rBufferSize = 18;
+	memset(rBuffer, 0, rBufferSize);
 
-	rBuffer[0] = 0x00;
-	rBuffer[1] = 0x00;
-	rBuffer[2] = 0x00;
-	rBuffer[3] = 0x00;
-	rBuffer[4] = 0x00;
-	rBuffer[5] = 0x00;
-	rBuffer[6] = 0x00;
-	rBuffer[7] = 0x00;
-	rBuffer[8] = 0x00;
-	rBuffer[9] = 0x00;
-	rBuffer[10] = 0x00;
-	rBuffer[11] = 0x00;
-	rBuffer[12] = 0x00;
-	rBuffer[13] = 0x00;
-	rBuffer[14] = 0x00;
-	rBuffer[15] = 0x00;
-	rBuffer[16] = 0x00;
+	for (int sector = 0; sector < 2; sector++) {
+		Serial.printf("Sector %u\n", sector);
 
-	// SECTOR 0
-	// BLOCK 0
-	status = mfrc522.MIFARE_Read(0, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+		status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, sector * 4, &key, &myUid);
+		Serial.print("Authenticate status = ");
+		Serial.println(MFRC522::GetStatusCodeName(status));
 
-	Serial.print("Sector 0 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
+		for (int block = 0; block < 4; block++) {
+			Serial.printf("Block %u (%u)\n", block, sector * 4 + block);
 
-	// BLOCK 1
-	status = mfrc522.MIFARE_Read(1, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+			status = mfrc522.MIFARE_Read(sector * 4 + block, rBuffer, &rBufferSize);
+			Serial.print("Read status = ");
+			Serial.println(MFRC522::GetStatusCodeName(status));
 
-	Serial.print("Sector 1 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
+			Serial.printf("Block %u content: ", sector * 4 + block);
+			dump_byte_array(rBuffer, rBufferSize);
+			Serial.println();
+		}
+	}
 
-	// BLOCK 2
-	status = mfrc522.MIFARE_Read(2, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
-	Serial.print("Sector 2 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
-
-	// BLOCK 3
-	status = mfrc522.MIFARE_Read(3, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
-	Serial.print("Sector 3 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
-
-	//SECTOR 1
-	status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, 4, &key, &myUid);
-	Serial.print("Authenticate status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
-	// BLOCK 4
-	status = mfrc522.MIFARE_Read(4, rBuffer, &rBufferSize);
-	Serial.print("Read status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
-	Serial.print("Sector 4 content: ");
-	dump_byte_array(rBuffer, rBufferSize);
-	Serial.println();
-
-	
 	mfrc522.PCD_StopCrypto1();
 	mfrc522.PICC_HaltA();
 
 	Serial.print("\n\n\n");
 
-	delay(2000);
+	delay(1000);
 }
 
 /*
