@@ -1,125 +1,88 @@
-#include <Arduino.h>
-#include <SPI.h>
-#include <MFRC522.h>
-
 #include "main.h"
 
-#define SS_PIN 22
-#define RST_PIN 21
+const char* ssid = "FabLab Muenchen";
+const char* password = "FabLab2016";
 
-MFRC522 mfrc522(SS_PIN, RST_PIN);
+Backend backend;
+CardReader cardreader;
 
-MFRC522::StatusCode status; 
-MFRC522::Uid myUid;
-MFRC522::MIFARE_Key key;
+bool successfulRead;
 
 void setup() {
 	Serial.begin(115200);
+
+	WiFi.begin(ssid, password);
+
 	SPI.begin();
+
+	M5.begin();
+	M5.Lcd.fillScreen(WHITE);
+	delay(50);
+	M5.Lcd.clearDisplay();
+
+	cardreader.begin();
 
 	Serial.println("\n\nHello World");
 
-	mfrc522.PCD_Init(SS_PIN, RST_PIN);
-	mfrc522.PCD_DumpVersionToSerial();
-
-	key.keyByte[0] = 0xFF;
-	key.keyByte[1] = 0xFF;
-	key.keyByte[2] = 0xFF;
-	key.keyByte[3] = 0xFF;
-	key.keyByte[4] = 0xFF;
-	key.keyByte[5] = 0xFF;
-
-	/*key.keyByte[0] = 0x00;
-	key.keyByte[1] = 0x00;
-	key.keyByte[2] = 0x00;
-	key.keyByte[3] = 0x00;
-	key.keyByte[4] = 0x00;
-	key.keyByte[5] = 0x00;*/
 }
 
 void loop() {
-	// Reset baud rates
-	mfrc522.PCD_WriteRegister(MFRC522::TxModeReg, 0x00);
-	mfrc522.PCD_WriteRegister(MFRC522::RxModeReg, 0x00);
-	// Reset ModWidthReg
-	mfrc522.PCD_WriteRegister(MFRC522::ModWidthReg, 0x26);
+	M5.update();
+	if (M5.BtnC.wasReleased()) M5.powerOFF();
 
-	//reset uid buffer
-	myUid.size = 0;
-	myUid.uidByte[0] = 0;
-	myUid.uidByte[1] = 0;
-	myUid.uidByte[2] = 0;
-	myUid.uidByte[3] = 0;
-	myUid.uidByte[4] = 0;
-	myUid.uidByte[5] = 0;
-	myUid.uidByte[6] = 0;
-	myUid.uidByte[7] = 0;
-	myUid.uidByte[8] = 0;
-	myUid.uidByte[9] = 0;
-	myUid.sak = 0;
-
-	byte waBufferATQA[2];
-	byte waBufferSize = 2;
-
-	waBufferATQA[0] = 0x00;
-	waBufferATQA[1] = 0x00;
-
-	status = mfrc522.PICC_WakeupA(waBufferATQA, &waBufferSize);
-	Serial.print("WakeupA status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
-	if (status != MFRC522::STATUS_OK) {
-		delay(1000);
+	if (!loop_wifi()) {
+		delay(10);
 		return;
 	}
 
-	Serial.print("ATQA: ");
-	dump_byte_array(waBufferATQA, waBufferSize);
-	Serial.println();
-
-	status = mfrc522.PICC_Select(&myUid, 0);
-	Serial.print("Select status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
-
-	if (status != MFRC522::STATUS_OK) {
-		delay(1000);
+	if (successfulRead && !M5.BtnA.wasReleased()) {
 		return;
 	}
 
-	Serial.print("Uid: ");
-	dump_byte_array(myUid.uidByte, myUid.size);
-	Serial.println();
+	successfulRead = false;
 
-	byte rBuffer[18];
-	byte rBufferSize = 18;
-	memset(rBuffer, 0, rBufferSize);
+	M5.Lcd.clearDisplay();
+	M5.Lcd.setCursor(0, 0);
 
-	for (int sector = 0; sector < 2; sector++) {
-		Serial.printf("Sector %u\n", sector);
+	//M5.Lcd.drawString("[centre]", 160, 230);
+	M5.Lcd.drawString("[off]", 255, 230);
 
-		status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, sector * 4, &key, &myUid);
-		Serial.print("Authenticate status = ");
-		Serial.println(MFRC522::GetStatusCodeName(status));
+	int uidSize = cardreader.read(true);
 
-		for (int block = 0; block < 4; block++) {
-			Serial.printf("Block %u (%u)\n", block, sector * 4 + block);
+	if (uidSize > 0) {
+		M5.Lcd.setTextDatum(CC_DATUM);
+		M5.Lcd.drawString("[read]", 65, 230);
 
-			status = mfrc522.MIFARE_Read(sector * 4 + block, rBuffer, &rBufferSize);
-			Serial.print("Read status = ");
-			Serial.println(MFRC522::GetStatusCodeName(status));
-
-			Serial.printf("Block %u content: ", sector * 4 + block);
-			dump_byte_array(rBuffer, rBufferSize);
-			Serial.println();
-		}
+		successfulRead = true;
 	}
 
-	mfrc522.PCD_StopCrypto1();
-	mfrc522.PICC_HaltA();
+	char uidBuffer[12];
+	if (uidSize == 4) {
+		sprintf(uidBuffer, "%02X%02X%02X%02X", cardreader.uid.uidByte[0], cardreader.uid.uidByte[1], cardreader.uid.uidByte[2], cardreader.uid.uidByte[3]);
+	} else {
+		M5.Lcd.printf("UID length not 4!");
+		return;
+	}
 
-	Serial.print("\n\n\n");
+	String uidString(uidBuffer);
+	bool access = backend.onlineRequest(DEVICE_ID, uidString);
 
-	delay(1000);
+	if (access) {
+		M5.Lcd.printf("ACCESS");
+	} else {
+		M5.Lcd.printf("NO ACCESS");
+	}
+	delay(5000);
+}
+
+bool loop_wifi() {
+	if (WiFi.status() == WL_CONNECTED) {
+		Serial.println("WiFi connected");
+		return true;
+	} else {
+		Serial.println("WiFi not connected");
+		return false;
+	}
 }
 
 /*
@@ -129,5 +92,12 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
     for (byte i = 0; i < bufferSize; i++) {
         Serial.print(buffer[i] < 0x10 ? " 0" : " ");
         Serial.print(buffer[i], HEX);
+    }
+}
+
+void lcd_dump_byte_array(byte *buffer, byte bufferSize) {
+	for (byte i = 0; i < bufferSize; i++) {
+        M5.Lcd.print(buffer[i] < 0x10 ? " 0" : " ");
+        M5.Lcd.print(buffer[i], HEX);
     }
 }
