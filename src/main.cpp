@@ -6,7 +6,9 @@ const char* password = "FabLab2016";
 Backend backend;
 CardReader cardreader;
 
-bool successfulRead;
+bool accessEnabled = false;
+unsigned long lastSuccessfulRead = 0;
+byte cardId[10];
 
 void setup() {
 	Serial.begin(115200);
@@ -28,32 +30,47 @@ void setup() {
 
 void loop() {
 	M5.update();
-	if (M5.BtnC.wasReleased()) M5.powerOFF();
+
+	loop_off();
 
 	if (!loop_wifi()) {
-		delay(10);
 		return;
 	}
 
-	if (successfulRead && !M5.BtnA.wasReleased()) {
-		return;
+	if (loop_access()) {
+		enable_access(0);
+	} else {
+		disable_access(0);
 	}
+}
 
-	successfulRead = false;
-
-	M5.Lcd.clearDisplay();
-	M5.Lcd.setCursor(0, 0);
-
+bool loop_off() {
 	//M5.Lcd.drawString("[centre]", 160, 230);
 	M5.Lcd.drawString("[off]", 255, 230);
+	if (M5.BtnC.wasReleased()) M5.powerOFF();
+}
 
-	int uidSize = cardreader.read(true);
+bool loop_wifi() {
+	if (WiFi.status() == WL_CONNECTED) {
+		return true;
+	} else {
+		Serial.println("WiFi not connected");
+		return false;
+	}
+}
 
-	if (uidSize > 0) {
-		M5.Lcd.setTextDatum(CC_DATUM);
-		M5.Lcd.drawString("[read]", 65, 230);
+bool loop_access() {
+	long deltaTime = millis() - lastSuccessfulRead;
 
-		successfulRead = true;
+	if (accessEnabled && deltaTime < 5000) {
+		return true;
+	}
+
+	int uidSize = cardreader.read(false);
+
+	if (uidSize <= 0) {
+		lastSuccessfulRead = 0;
+		return false;
 	}
 
 	char uidBuffer[12];
@@ -61,28 +78,35 @@ void loop() {
 		sprintf(uidBuffer, "%02X%02X%02X%02X", cardreader.uid.uidByte[0], cardreader.uid.uidByte[1], cardreader.uid.uidByte[2], cardreader.uid.uidByte[3]);
 	} else {
 		M5.Lcd.printf("UID length not 4!");
-		return;
+		return false;
 	}
+
+
+	//TODO: check whether uid is still the same
+
+	//if card id is not the same, do new request
 
 	String uidString(uidBuffer);
 	bool access = backend.onlineRequest(DEVICE_ID, uidString);
 
 	if (access) {
 		M5.Lcd.printf("ACCESS");
-	} else {
-		M5.Lcd.printf("NO ACCESS");
-	}
-	delay(5000);
-}
-
-bool loop_wifi() {
-	if (WiFi.status() == WL_CONNECTED) {
-		Serial.println("WiFi connected");
+		lastSuccessfulRead = millis();
 		return true;
 	} else {
-		Serial.println("WiFi not connected");
+		M5.Lcd.printf("NO ACCESS");
 		return false;
 	}
+}
+
+bool enable_access(int nr) {
+	accessEnabled = true;
+	M5.Lcd.fillCircle(160, 120, 60, TFT_GREEN);
+}
+
+bool disable_access(int nr) {
+	accessEnabled = false;
+	M5.Lcd.fillCircle(160, 120, 60, TFT_RED);
 }
 
 /*

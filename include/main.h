@@ -12,7 +12,11 @@
 #include "cardreader.h"
 #include "backend.h"
 
+bool loop_off();
 bool loop_wifi();
+bool loop_access();
+bool enable_access(int nr);
+bool disable_access(int nr);
 void dump_byte_array(byte *buffer, byte bufferSize);
 void lcd_dump_byte_array(byte *buffer, byte bufferSize);
 
