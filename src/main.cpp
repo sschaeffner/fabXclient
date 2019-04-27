@@ -3,6 +3,8 @@
 const char* ssid = "FabLab Muenchen";
 const char* password = "FabLab2016";
 
+unsigned long lastWifiReconnect = 0;
+
 Backend backend;
 CardReader cardreader;
 
@@ -12,20 +14,18 @@ byte cardId[10];
 
 void setup() {
 	Serial.begin(115200);
-
 	WiFi.begin(ssid, password);
-
 	SPI.begin();
-
 	M5.begin();
+	cardreader.begin();
+
+	lastWifiReconnect = millis();
+
 	M5.Lcd.fillScreen(WHITE);
 	delay(50);
 	M5.Lcd.clearDisplay();
 
-	cardreader.begin();
-
 	Serial.println("\n\nHello World");
-
 }
 
 void loop() {
@@ -42,9 +42,12 @@ void loop() {
 	} else {
 		disable_access(0);
 	}
+
+	delay(1);
+	yield();
 }
 
-bool loop_off() {
+void loop_off() {
 	//M5.Lcd.drawString("[centre]", 160, 230);
 	M5.Lcd.drawString("[off]", 255, 230);
 	if (M5.BtnC.wasReleased()) M5.powerOFF();
@@ -54,8 +57,22 @@ bool loop_wifi() {
 	if (WiFi.status() == WL_CONNECTED) {
 		return true;
 	} else {
-		Serial.println("WiFi not connected");
-		return false;
+		Serial.println("WiFi not connected.");
+
+		if (millis() - lastWifiReconnect > WIFI_RECONNECT_TIME) {
+			Serial.println("WiFi: Trying to reconnect...");
+
+			WiFi.disconnect();
+			WiFi.mode(WIFI_OFF);
+			WiFi.mode(WIFI_STA);
+			WiFi.begin(ssid, password);
+
+			lastWifiReconnect = millis();
+		} else {
+			Serial.println("WiFi: Last reconnect try within the last 5 seconds.");
+		}
+
+		return WiFi.status() == WL_CONNECTED;
 	}
 }
 
@@ -102,11 +119,13 @@ bool loop_access() {
 bool enable_access(int nr) {
 	accessEnabled = true;
 	M5.Lcd.fillCircle(160, 120, 60, TFT_GREEN);
+	return true;
 }
 
 bool disable_access(int nr) {
 	accessEnabled = false;
 	M5.Lcd.fillCircle(160, 120, 60, TFT_RED);
+	return true;
 }
 
 /*

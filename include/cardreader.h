@@ -20,6 +20,7 @@ class CardReader {
         MFRC522 mfrc522;
         MFRC522::StatusCode status; 
         MFRC522::MIFARE_Key key;
+        void end_read();
         void dump_byte_array(byte *buffer, byte bufferSize);
         void lcd_dump_byte_array(byte *buffer, byte bufferSize);
 };

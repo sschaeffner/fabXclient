@@ -49,6 +49,7 @@ int CardReader::read(bool lcdDebug) {
     }
 
 	if (status != MFRC522::STATUS_OK) {
+		end_read();
 		return -1;
 	}
 
@@ -70,6 +71,7 @@ int CardReader::read(bool lcdDebug) {
     }
 
 	if (status != MFRC522::STATUS_OK) {
+		end_read();
 		return -2;
 	}
 
@@ -99,6 +101,7 @@ int CardReader::read(bool lcdDebug) {
                 M5.Lcd.println(MFRC522::GetStatusCodeName(status));
             }
 
+			end_read();
             return -3;
 		}
 
@@ -113,6 +116,8 @@ int CardReader::read(bool lcdDebug) {
                     M5.Lcd.print("Read status = ");
                     M5.Lcd.println(MFRC522::GetStatusCodeName(status));
                 }
+
+				end_read();
                 return -4;
 			}
 			
@@ -127,12 +132,14 @@ int CardReader::read(bool lcdDebug) {
 		}
 	}
 
+	Serial.print("\n\n\n");
+    end_read();
+    return uid.size;
+}
+
+void CardReader::end_read() {
 	mfrc522.PCD_StopCrypto1();
 	mfrc522.PICC_HaltA();
-
-	Serial.print("\n\n\n");
-    
-    return uid.size;
 }
 
 void CardReader::dump_byte_array(byte *buffer, byte bufferSize) {

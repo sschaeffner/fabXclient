@@ -2,6 +2,7 @@
 #define MAIN_H
 
 #define DEVICE_ID 1
+#define WIFI_RECONNECT_TIME 5000 // how long the ESP should wait until it disables and reenables WiFi if it cannot connect
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -12,7 +13,7 @@
 #include "cardreader.h"
 #include "backend.h"
 
-bool loop_off();
+void loop_off();
 bool loop_wifi();
 bool loop_access();
 bool enable_access(int nr);
