@@ -41,8 +41,8 @@ int CardReader::read(bool lcdDebug) {
 
 	status = mfrc522.PICC_WakeupA(waBufferATQA, &waBufferSize);
 	
-	Serial.print("CardReader::read WakeupA status = ");
-	Serial.println(MFRC522::GetStatusCodeName(status));
+	//Serial.print("CardReader::read WakeupA status = ");
+	//Serial.println(MFRC522::GetStatusCodeName(status));
     if (lcdDebug) {
         M5.Lcd.print("CardReader::read WakeupA status = ");
         M5.Lcd.println(MFRC522::GetStatusCodeName(status));

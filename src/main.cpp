@@ -3,66 +3,111 @@
 const char* ssid = "FabLab Muenchen";
 const char* password = "FabLab2016";
 
+wl_status_t wifiStatus = WL_IDLE_STATUS;
 unsigned long lastWifiReconnect = 0;
 
-Backend backend;
-CardReader cardreader;
+bool redrawRequest, redrawing;
 
-bool accessEnabled = false;
-unsigned long lastSuccessfulRead = 0;
-byte cardId[10];
+bool configRead;
+
+CardReader cardReader;
+Config config;
+Backend backend;
+
+State state;
+MFRC522::Uid cardId;
+int toolSelector;
+int accessToolId;
 
 void setup() {
 	Serial.begin(115200);
 	WiFi.begin(ssid, password);
 	SPI.begin();
 	M5.begin();
-	cardreader.begin();
+	//M5.Speaker.tone(440, 100);
+
+	backend.begin();
+	cardReader.begin();
+	cardId.size = 0;
 
 	lastWifiReconnect = millis();
 
-	M5.Lcd.fillScreen(WHITE);
-	delay(50);
-	M5.Lcd.clearDisplay();
+	//disable Bluetooth
+	btStop();
 
+	configRead = false;
+	
 	Serial.println("\n\nHello World");
+
+	Serial.printf("deviceMac:%s\n", backend.deviceMac.c_str());
+
+	redrawRequest = true;
+	redrawing = false;
 }
 
 void loop() {
 	M5.update();
 
+	redrawing = redrawRequest;
+	redrawRequest = false;
+
+	if (redrawing) M5.Lcd.clearDisplay();
+
 	loop_off();
-
-	if (!loop_wifi()) {
-		return;
-	}
-
-	if (loop_access()) {
-		enable_access(0);
-	} else {
-		disable_access(0);
-	}
+	loop_wifi();
+	loop_config();
+	loop_access();
 
 	delay(1);
 	yield();
 }
 
 void loop_off() {
-	//M5.Lcd.drawString("[centre]", 160, 230);
-	M5.Lcd.drawString("[off]", 255, 230);
-	if (M5.BtnC.wasReleased()) M5.powerOFF();
+	if (state == IDLE) {
+		if (redrawing) {
+			M5.Lcd.setTextColor(TFT_WHITE);
+			M5.Lcd.setTextDatum(BC_DATUM);
+			M5.Lcd.drawString("[off]", 255, 240);
+		}
+
+		//if (M5.BtnC.wasReleased()) M5.powerOFF();
+	}
 }
 
 bool loop_wifi() {
+	wl_status_t status = WiFi.status();
+	if (status != wifiStatus) {
+		redrawRequest = true;
+		wifiStatus = status;
+	}
+
+	if (redrawing) {
+		M5.Lcd.setTextColor(TFT_WHITE);
+		M5.Lcd.setTextDatum(TR_DATUM);
+		M5.Lcd.drawString(backend.deviceMac.c_str(), 320, 0);
+	}
+
 	if (WiFi.status() == WL_CONNECTED) {
+		if (redrawing) {
+			M5.Lcd.setTextColor(TFT_GREEN);
+			M5.Lcd.setTextDatum(TR_DATUM);
+			M5.Lcd.drawString("WiFi CONN", 320, 12);
+		}
+		
 		return true;
 	} else {
+		if (redrawing) {
+			M5.Lcd.setTextColor(TFT_RED);
+			M5.Lcd.setTextDatum(TR_DATUM);
+			M5.Lcd.drawString("WiFi DISC", 320, 12);
+		}
+
 		Serial.println("WiFi not connected.");
 
 		if (millis() - lastWifiReconnect > WIFI_RECONNECT_TIME) {
 			Serial.println("WiFi: Trying to reconnect...");
 
-			WiFi.disconnect();
+			WiFi.disconnect(true);
 			WiFi.mode(WIFI_OFF);
 			WiFi.mode(WIFI_STA);
 			WiFi.begin(ssid, password);
@@ -76,56 +121,160 @@ bool loop_wifi() {
 	}
 }
 
-bool loop_access() {
-	long deltaTime = millis() - lastSuccessfulRead;
-
-	if (accessEnabled && deltaTime < 5000) {
-		return true;
+void loop_config() {
+	if (wifiStatus == WL_CONNECTED && !configRead) {
+		configRead = backend.readConfig(config);
+		redrawRequest = true;
 	}
-
-	int uidSize = cardreader.read(false);
-
-	if (uidSize <= 0) {
-		lastSuccessfulRead = 0;
-		return false;
-	}
-
-	char uidBuffer[12];
-	if (uidSize == 4) {
-		sprintf(uidBuffer, "%02X%02X%02X%02X", cardreader.uid.uidByte[0], cardreader.uid.uidByte[1], cardreader.uid.uidByte[2], cardreader.uid.uidByte[3]);
-	} else {
-		M5.Lcd.printf("UID length not 4!");
-		return false;
-	}
-
-
-	//TODO: check whether uid is still the same
-
-	//if card id is not the same, do new request
-
-	String uidString(uidBuffer);
-	bool access = backend.onlineRequest(DEVICE_ID, uidString);
-
-	if (access) {
-		M5.Lcd.printf("ACCESS");
-		lastSuccessfulRead = millis();
-		return true;
-	} else {
-		M5.Lcd.printf("NO ACCESS");
-		return false;
+	if (redrawing) {
+		M5.Lcd.setTextColor(TFT_WHITE);
+		M5.Lcd.setTextDatum(TL_DATUM);
+		M5.Lcd.drawString(config.deviceName, 0, 0);
 	}
 }
 
-bool enable_access(int nr) {
-	accessEnabled = true;
-	M5.Lcd.fillCircle(160, 120, 60, TFT_GREEN);
-	return true;
+void loop_access() {
+	if (state >= CARD_ID_KNOWN && redrawing) {
+		char cardIdBuffer[32];
+		sprintf(cardIdBuffer, "0x%02X%02X%02X%02X", cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3]);
+
+		M5.Lcd.setTextColor(TFT_WHITE);
+		M5.Lcd.setTextDatum(TL_DATUM);
+		M5.Lcd.drawString(cardIdBuffer, 0, 12);
+	}
+
+	if (state == IDLE) {
+        int success = cardReader.read(false);
+
+        if (success > 0) {
+			cardId.size = cardReader.uid.size;
+			for (int i = 0; i < cardId.size; i++) {
+				cardId.uidByte[i] = cardReader.uid.uidByte[i];
+			}
+
+            state = CARD_ID_KNOWN;
+        }
+    }
+
+    if (state == CARD_ID_KNOWN) {
+		if (backend.toolsWithAccess(cardId)) {
+			state = ACCESS_KNOWN;
+		}
+    }
+
+	if (state == ACCESS_KNOWN) {
+		if (config.toolAmount == 1 && backend.accessToolsAmount == 1 && config.toolIds[0] == backend.accessTools[0]) {
+			accessToolId = config.toolIds[0];
+
+			switch (config.toolModes[0]) {
+				case KEEP:
+					state = KEEP_CARD;
+					break;
+				case UNLOCK:
+					state = UNLOCK_TOOL;
+					break;
+			}
+		} else {
+			state = CHOOSE_TOOL;
+			toolSelector = 0;
+			redrawRequest = true;
+		}
+	}
+
+	if (state == CHOOSE_TOOL) {
+		if (M5.BtnA.wasPressed()) {
+			if (toolSelector > 0) --toolSelector;
+			redrawRequest = true;
+		}
+		if (M5.BtnB.wasPressed()) {
+			if (toolSelector < backend.accessToolsAmount - 2) ++toolSelector;
+			redrawRequest = true;
+		}
+		if (M5.BtnC.wasPressed()) {
+			accessToolId = config.toolIds[toolSelector];
+			int accessToolIndex = toolNrToToolIndex(accessToolId);
+
+			switch (config.toolModes[accessToolIndex]) {
+				case KEEP:
+					state = KEEP_CARD;
+					break;
+				case UNLOCK:
+					state = UNLOCK_TOOL;
+					break;
+			}
+			redrawRequest = true;
+		}
+
+		if (redrawing) {
+			M5.Lcd.setTextDatum(BC_DATUM);
+			M5.Lcd.setTextColor(TFT_WHITE);
+			M5.Lcd.drawString("[up]", 65, 240);
+			M5.Lcd.drawString("[down]", 160, 240);
+			M5.Lcd.drawString("[select]", 255, 240);
+		
+			M5.Lcd.setTextDatum(TL_DATUM);
+
+			for (int i = 0; i < backend.accessToolsAmount; i++) {
+				int toolNr = backend.accessTools[i];
+				int toolIndex = toolNrToToolIndex(toolNr);
+
+				if (toolIndex >= 0) {
+					if (i == toolSelector) {
+						M5.Lcd.setTextColor(TFT_GREEN);
+					} else {
+						M5.Lcd.setTextColor(TFT_WHITE);
+					}
+					
+					M5.Lcd.drawString(config.toolNames[toolIndex], 0, 36 + (12 * i));
+				}
+			}
+		}
+	}
+
+	if (state == UNLOCK_TOOL) {
+		Serial.printf("UNLOCK TOOL: accessToolId=%i\n", accessToolId);
+
+		int accessToolIndex = toolNrToToolIndex(accessToolId);
+		int accessToolPin = config.toolPins[accessToolIndex];
+
+		Serial.printf("UNLOCK TOOL: accessToolIndex=%i\n", accessToolIndex);
+
+		Serial.print("UNLOCK TOOL: toolName=");
+		Serial.println(config.toolNames[accessToolIndex]);
+
+		Serial.printf("UNLOCK TOOL: pin=%i\n", accessToolPin);
+
+		char sBuffer[64];
+		sprintf(sBuffer, "UNLOCKING\n%s", config.toolNames[accessToolIndex].c_str());
+		sBuffer[63] = '\0';
+
+		M5.Lcd.setTextDatum(CC_DATUM);
+		M5.Lcd.setTextColor(TFT_GREEN);
+		M5.Lcd.drawString(sBuffer, 160, 120);
+
+		delay(200);
+		
+		state = IDLE;
+	}
+
+	if (state == KEEP_CARD) {
+
+	}
+
+	if (state == CHECK_CARD) {
+
+		//if card not read
+		backend.accessToolsAmount = 0;
+	}
 }
 
-bool disable_access(int nr) {
-	accessEnabled = false;
-	M5.Lcd.fillCircle(160, 120, 60, TFT_RED);
-	return true;
+int toolNrToToolIndex(int toolNr) {
+	for (int i = 0; i < config.toolAmount; i++) {
+		if (config.toolIds[i] == toolNr) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 /*
