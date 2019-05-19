@@ -45,6 +45,10 @@ void setup() {
 
 	redrawRequest = true;
 	redrawing = false;
+
+	M5.Lcd.fillCircle(80, 120, 20, TFT_LIGHTGREY);
+	M5.Lcd.fillCircle(160, 120, 20, TFT_LIGHTGREY);
+	M5.Lcd.fillCircle(240, 120, 20, TFT_LIGHTGREY);
 }
 
 void loop() {
@@ -133,9 +137,16 @@ void loop_config() {
 		redrawRequest = true;
 	}
 	if (redrawing) {
-		M5.Lcd.setTextColor(TFT_WHITE);
-		M5.Lcd.setTextDatum(TL_DATUM);
-		M5.Lcd.drawString(config.deviceName, 0, 0);
+		if (configRead) {
+			M5.Lcd.setTextColor(TFT_WHITE);
+			M5.Lcd.setTextDatum(TL_DATUM);
+			M5.Lcd.drawString(config.deviceName, 0, 0);
+		} else {
+			M5.Lcd.setTextDatum(CC_DATUM);
+			M5.Lcd.setTextColor(TFT_WHITE);
+			M5.Lcd.setTextSize(3);
+			M5.Lcd.drawString("SELF CONFIG", 160, 120);
+		}
 	}
 }
 
@@ -169,9 +180,9 @@ void loop_access() {
     }
 
     if (state == CARD_ID_KNOWN) {
-		M5.Lcd.fillCircle(80, 120, 20, TFT_GREEN);
-		M5.Lcd.fillCircle(160, 120, 20, TFT_GREEN);
-		M5.Lcd.fillCircle(240, 120, 20, TFT_GREEN);
+		M5.Lcd.fillCircle(80, 120, 20, TFT_WHITE);
+		M5.Lcd.fillCircle(160, 120, 20, TFT_WHITE);
+		M5.Lcd.fillCircle(240, 120, 20, TFT_WHITE);
 		if (backend.toolsWithAccess(cardId)) {
 			state = ACCESS_KNOWN;
 		}
