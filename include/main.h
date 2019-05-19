@@ -23,6 +23,6 @@ void lcd_dump_byte_array(byte *buffer, byte bufferSize);
 
 int toolNrToToolIndex(int toolNr);
 
-enum State { IDLE, CARD_ID_KNOWN, ACCESS_KNOWN, CHOOSE_TOOL, UNLOCK_TOOL, KEEP_CARD, CHECK_CARD };
+enum State { IDLE, CARD_ID_KNOWN, ACCESS_KNOWN, CHOOSE_TOOL, UNLOCK_TOOL, KEEP_CARD, KEEP_CARD_STILL, CHECK_CARD };
 
 #endif //MAIN_H

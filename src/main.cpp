@@ -1,7 +1,7 @@
 #include "main.h"
 
-const char* ssid = "FabLab Muenchen";
-const char* password = "FabLab2016";
+const char* ssid = "cbsjnet";//"FabLab Muenchen";
+const char* password = "cbsjnet4encryptionpassword";//"FabLab2016";
 
 wl_status_t wifiStatus = WL_IDLE_STATUS;
 unsigned long lastWifiReconnect = 0;
@@ -16,6 +16,8 @@ Backend backend;
 
 State state;
 MFRC522::Uid cardId;
+int lastTimeCardRead = 0;;
+
 int toolSelector;
 int accessToolId;
 
@@ -67,6 +69,7 @@ void loop_off() {
 		if (redrawing) {
 			M5.Lcd.setTextColor(TFT_WHITE);
 			M5.Lcd.setTextDatum(BC_DATUM);
+			M5.Lcd.setTextSize(1);
 			M5.Lcd.drawString("[off]", 255, 240);
 		}
 
@@ -84,6 +87,7 @@ bool loop_wifi() {
 	if (redrawing) {
 		M5.Lcd.setTextColor(TFT_WHITE);
 		M5.Lcd.setTextDatum(TR_DATUM);
+		M5.Lcd.setTextSize(1);
 		M5.Lcd.drawString(backend.deviceMac.c_str(), 320, 0);
 	}
 
@@ -91,6 +95,7 @@ bool loop_wifi() {
 		if (redrawing) {
 			M5.Lcd.setTextColor(TFT_GREEN);
 			M5.Lcd.setTextDatum(TR_DATUM);
+			M5.Lcd.setTextSize(1);
 			M5.Lcd.drawString("WiFi CONN", 320, 12);
 		}
 		
@@ -99,6 +104,7 @@ bool loop_wifi() {
 		if (redrawing) {
 			M5.Lcd.setTextColor(TFT_RED);
 			M5.Lcd.setTextDatum(TR_DATUM);
+			M5.Lcd.setTextSize(1);
 			M5.Lcd.drawString("WiFi DISC", 320, 12);
 		}
 
@@ -140,14 +146,20 @@ void loop_access() {
 
 		M5.Lcd.setTextColor(TFT_WHITE);
 		M5.Lcd.setTextDatum(TL_DATUM);
+		M5.Lcd.setTextSize(1);
 		M5.Lcd.drawString(cardIdBuffer, 0, 12);
 	}
 
 	if (state == IDLE) {
+		cardId.size = 0;
+		lastTimeCardRead = 0;
+
         int success = cardReader.read(false);
 
         if (success > 0) {
 			cardId.size = cardReader.uid.size;
+			lastTimeCardRead = millis();
+
 			for (int i = 0; i < cardId.size; i++) {
 				cardId.uidByte[i] = cardReader.uid.uidByte[i];
 			}
@@ -157,6 +169,9 @@ void loop_access() {
     }
 
     if (state == CARD_ID_KNOWN) {
+		M5.Lcd.fillCircle(80, 120, 20, TFT_GREEN);
+		M5.Lcd.fillCircle(160, 120, 20, TFT_GREEN);
+		M5.Lcd.fillCircle(240, 120, 20, TFT_GREEN);
 		if (backend.toolsWithAccess(cardId)) {
 			state = ACCESS_KNOWN;
 		}
@@ -208,6 +223,7 @@ void loop_access() {
 		if (redrawing) {
 			M5.Lcd.setTextDatum(BC_DATUM);
 			M5.Lcd.setTextColor(TFT_WHITE);
+			M5.Lcd.setTextSize(1);
 			M5.Lcd.drawString("[up]", 65, 240);
 			M5.Lcd.drawString("[down]", 160, 240);
 			M5.Lcd.drawString("[select]", 255, 240);
@@ -250,6 +266,7 @@ void loop_access() {
 
 		M5.Lcd.setTextDatum(CC_DATUM);
 		M5.Lcd.setTextColor(TFT_GREEN);
+		M5.Lcd.setTextSize(1);
 		M5.Lcd.drawString(sBuffer, 160, 120);
 
 		delay(200);
@@ -258,13 +275,63 @@ void loop_access() {
 	}
 
 	if (state == KEEP_CARD) {
+		Serial.printf("KEEP TOOL: accessToolId=%i\n", accessToolId);
 
+		int accessToolIndex = toolNrToToolIndex(accessToolId);
+		int accessToolPin = config.toolPins[accessToolIndex];
+
+		Serial.printf("KEEP TOOL: accessToolIndex=%i\n", accessToolIndex);
+		
+		Serial.print("KEEP TOOL: toolName=");
+		Serial.println(config.toolNames[accessToolIndex]);
+
+		Serial.printf("KEEP TOOL: pin=%i\n", accessToolPin);
+
+		if (redrawing) {
+			M5.Lcd.setTextDatum(CC_DATUM);
+			M5.Lcd.setTextColor(TFT_GREEN);
+			M5.Lcd.setTextSize(3);
+			M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
+		}
+
+		//TODO: ENABLE TOOL
+
+		state = KEEP_CARD_STILL;
+	}
+
+	if (state == KEEP_CARD_STILL) {
+		if (millis() > lastTimeCardRead + 5000) {
+			state = CHECK_CARD;
+		}
 	}
 
 	if (state == CHECK_CARD) {
+		Serial.printf("CHECK_CARD\n");
 
-		//if card not read
-		backend.accessToolsAmount = 0;
+        int success = cardReader.read(false);
+
+        if (success > 0) {
+			// check if read card id and access card id are the same (no card hot-swap)
+			for (int i = 0; i < cardId.size; i++) {
+				if (cardId.uidByte[i] != cardReader.uid.uidByte[i]) {
+					success = 0;
+				}
+			}
+		}
+
+		if (success > 0) { // card id is still the same
+			cardId.size = cardReader.uid.size;
+			lastTimeCardRead = millis();
+			
+			state = KEEP_CARD;
+		} else { // card no longer there or card id changed
+			cardId.size = 0;
+			lastTimeCardRead = 0;
+			
+			//TODO: DISABLE TOOL
+			state = IDLE;
+		}
+		redrawRequest = true;
 	}
 }
 
