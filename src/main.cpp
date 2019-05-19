@@ -74,10 +74,10 @@ void loop_off() {
 			M5.Lcd.setTextColor(TFT_WHITE);
 			M5.Lcd.setTextDatum(BC_DATUM);
 			M5.Lcd.setTextSize(1);
-			M5.Lcd.drawString("[off]", 255, 240);
+			M5.Lcd.drawString("[off]", 65, 240);
 		}
 
-		//if (M5.BtnC.wasReleased()) M5.powerOFF();
+		if (M5.BtnA.wasReleased()) M5.powerOFF();
 	}
 }
 
@@ -140,6 +140,7 @@ void loop_config() {
 		if (configRead) {
 			M5.Lcd.setTextColor(TFT_WHITE);
 			M5.Lcd.setTextDatum(TL_DATUM);
+			M5.Lcd.setTextSize(2);
 			M5.Lcd.drawString(config.deviceName, 0, 0);
 		} else {
 			M5.Lcd.setTextDatum(CC_DATUM);
@@ -158,7 +159,7 @@ void loop_access() {
 		M5.Lcd.setTextColor(TFT_WHITE);
 		M5.Lcd.setTextDatum(TL_DATUM);
 		M5.Lcd.setTextSize(1);
-		M5.Lcd.drawString(cardIdBuffer, 0, 12);
+		M5.Lcd.drawString(cardIdBuffer, 0, 20);
 	}
 
 	if (state == IDLE) {
@@ -217,7 +218,8 @@ void loop_access() {
 			redrawRequest = true;
 		}
 		if (M5.BtnC.wasPressed()) {
-			accessToolId = config.toolIds[toolSelector];
+			accessToolId = backend.accessTools[toolSelector];
+			//accessToolId = config.toolIds[toolSelector];
 			int accessToolIndex = toolNrToToolIndex(accessToolId);
 
 			switch (config.toolModes[accessToolIndex]) {
@@ -240,6 +242,9 @@ void loop_access() {
 			M5.Lcd.drawString("[select]", 255, 240);
 		
 			M5.Lcd.setTextDatum(TL_DATUM);
+			M5.Lcd.setTextSize(2);
+			int fontHeight = M5.Lcd.fontHeight(M5.Lcd.textfont);
+			fontHeight = fontHeight + (fontHeight >> 1);// fontHeight *= 1.5
 
 			for (int i = 0; i < backend.accessToolsAmount; i++) {
 				int toolNr = backend.accessTools[i];
@@ -252,7 +257,7 @@ void loop_access() {
 						M5.Lcd.setTextColor(TFT_WHITE);
 					}
 					
-					M5.Lcd.drawString(config.toolNames[toolIndex], 0, 36 + (12 * i));
+					M5.Lcd.drawString(config.toolNames[toolIndex], 0, 36 + (fontHeight * i));
 				}
 			}
 		}
@@ -271,14 +276,11 @@ void loop_access() {
 
 		Serial.printf("UNLOCK TOOL: pin=%i\n", accessToolPin);
 
-		char sBuffer[64];
-		sprintf(sBuffer, "UNLOCKING\n%s", config.toolNames[accessToolIndex].c_str());
-		sBuffer[63] = '\0';
-
+		M5.Lcd.clearDisplay();
 		M5.Lcd.setTextDatum(CC_DATUM);
 		M5.Lcd.setTextColor(TFT_GREEN);
-		M5.Lcd.setTextSize(1);
-		M5.Lcd.drawString(sBuffer, 160, 120);
+		M5.Lcd.setTextSize(3);
+		M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
 
 		delay(200);
 		
