@@ -134,7 +134,7 @@ bool Backend::toolsWithAccess(MFRC522::Uid cardId) {
 
         linePtr = strtok(accessBuffer, lineDelimiter);
 
-        accessToolsAmount = 1;
+        accessToolsAmount = 0;
         int accessToolNr = 0;
         while (linePtr != NULL) {
             accessTools[accessToolNr] = atoi(linePtr);

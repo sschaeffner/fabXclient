@@ -1,7 +1,7 @@
 #include "main.h"
 
-const char* ssid = "cbsjnet";//"FabLab Muenchen";
-const char* password = "cbsjnet4encryptionpassword";//"FabLab2016";
+const char* ssid = "FabLab Muenchen";
+const char* password = "FabLab2016";
 
 wl_status_t wifiStatus = WL_IDLE_STATUS;
 unsigned long lastWifiReconnect = 0;
@@ -202,9 +202,16 @@ void loop_access() {
 					break;
 			}
 		} else {
-			state = CHOOSE_TOOL;
-			toolSelector = 0;
-			redrawRequest = true;
+			if (backend.accessToolsAmount > 0) {
+				state = CHOOSE_TOOL;
+				toolSelector = 0;
+				redrawRequest = true;
+				Serial.printf("accessToolsAmount %i\n", backend.accessToolsAmount);
+			} else {
+				Serial.printf("accessToolsAmount zero\n");
+				state = IDLE;
+				redrawRequest = true;
+			}
 		}
 	}
 
@@ -214,7 +221,7 @@ void loop_access() {
 			redrawRequest = true;
 		}
 		if (M5.BtnB.wasPressed()) {
-			if (toolSelector < backend.accessToolsAmount - 2) ++toolSelector;
+			if (toolSelector < backend.accessToolsAmount - 1) ++toolSelector;
 			redrawRequest = true;
 		}
 		if (M5.BtnC.wasPressed()) {
