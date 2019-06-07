@@ -18,11 +18,14 @@ State state;
 MFRC522::Uid cardId;
 int lastTimeCardRead = 0;;
 
+int lastTimeToolSelectorChanged = 0;
 int toolSelector;
 int accessToolId;
 
 void setup() {
 	Serial.begin(115200);
+	Serial.println("Hello World");
+
 	WiFi.begin(ssid, password);
 	SPI.begin();
 	M5.begin();
@@ -38,8 +41,6 @@ void setup() {
 	btStop();
 
 	configRead = false;
-	
-	Serial.println("\n\nHello World");
 
 	Serial.printf("deviceMac:%s\n", backend.deviceMac.c_str());
 
@@ -165,6 +166,7 @@ void loop_access() {
 	if (state == IDLE) {
 		cardId.size = 0;
 		lastTimeCardRead = 0;
+		lastTimeToolSelectorChanged = 0;
 
         int success = cardReader.read(false);
 
@@ -206,6 +208,7 @@ void loop_access() {
 				state = CHOOSE_TOOL;
 				toolSelector = 0;
 				redrawRequest = true;
+				lastTimeToolSelectorChanged = millis();
 				Serial.printf("accessToolsAmount %i\n", backend.accessToolsAmount);
 			} else {
 				Serial.printf("accessToolsAmount zero\n");
@@ -216,17 +219,21 @@ void loop_access() {
 	}
 
 	if (state == CHOOSE_TOOL) {
+		bool listRedraw = false;
 		if (M5.BtnA.wasPressed()) {
 			if (toolSelector > 0) --toolSelector;
-			redrawRequest = true;
+			//redrawRequest = true;
+			listRedraw = true;
+			lastTimeToolSelectorChanged = millis();
 		}
 		if (M5.BtnB.wasPressed()) {
 			if (toolSelector < backend.accessToolsAmount - 1) ++toolSelector;
-			redrawRequest = true;
+			//redrawRequest = true;
+			listRedraw = true;
+			lastTimeToolSelectorChanged = millis();
 		}
 		if (M5.BtnC.wasPressed()) {
 			accessToolId = backend.accessTools[toolSelector];
-			//accessToolId = config.toolIds[toolSelector];
 			int accessToolIndex = toolNrToToolIndex(accessToolId);
 
 			switch (config.toolModes[accessToolIndex]) {
@@ -240,7 +247,12 @@ void loop_access() {
 			redrawRequest = true;
 		}
 
-		if (redrawing) {
+		if (millis() > lastTimeToolSelectorChanged + 10000) {
+			state = IDLE;
+			redrawRequest = true;
+		}
+
+		if (redrawing || listRedraw) {
 			M5.Lcd.setTextDatum(BC_DATUM);
 			M5.Lcd.setTextColor(TFT_WHITE);
 			M5.Lcd.setTextSize(1);
@@ -292,6 +304,7 @@ void loop_access() {
 		delay(200);
 		
 		state = IDLE;
+		redrawRequest = true;
 	}
 
 	if (state == KEEP_CARD) {
