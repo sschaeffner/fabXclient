@@ -9,6 +9,7 @@
 class Backend {
     public:
         String deviceMac;
+        String secret;
         int accessTools[MAX_TOOLS];
         int accessToolsAmount;
 

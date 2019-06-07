@@ -2,18 +2,21 @@
 #define MAIN_H
 
 #define WIFI_RECONNECT_TIME 5000 // how long the ESP should wait until it disables and reenables WiFi if it cannot connect
+#define SECRET_LENGTH 16
 
 #include <Arduino.h>
 #include <SPI.h>
 #include <M5Stack.h>
 #include <WiFi.h>
 #include <esp32-hal-bt.c>
+#include <EEPROM.h>
 #include <MFRC522.h>
 
 #include "config.h"
 #include "cardreader.h"
 #include "backend.h"
 
+void setup_secret();
 void loop_off();
 bool loop_wifi();
 void loop_config();

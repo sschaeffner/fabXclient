@@ -35,6 +35,8 @@ void setup() {
 	cardReader.begin();
 	cardId.size = 0;
 
+	setup_secret();
+
 	lastWifiReconnect = millis();
 
 	//disable Bluetooth
@@ -50,6 +52,32 @@ void setup() {
 	M5.Lcd.fillCircle(80, 120, 20, TFT_LIGHTGREY);
 	M5.Lcd.fillCircle(160, 120, 20, TFT_LIGHTGREY);
 	M5.Lcd.fillCircle(240, 120, 20, TFT_LIGHTGREY);
+}
+
+void setup_secret() {
+	EEPROM.begin(SECRET_LENGTH + 1);
+	byte magic = EEPROM.readByte(0);
+
+	if (magic != 0x42) {
+		Serial.println("GENERATING NEW SECRET!");
+		//generate new secret
+		EEPROM.writeByte(0, 0x42);
+		for (int i = 0; i < SECRET_LENGTH; i++) {
+			EEPROM.writeByte(i + 1, (byte) esp_random());
+		}
+	} else {
+		Serial.println("READING SECRET");
+	}
+
+	char buffer[3];
+
+	for (int i = 0; i < SECRET_LENGTH; i++) {
+		byte b = EEPROM.readByte(i + 1);
+		sprintf(buffer, "%02x", b);
+		backend.secret += buffer;
+	}
+
+	EEPROM.end();
 }
 
 void loop() {

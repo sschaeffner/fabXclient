@@ -13,7 +13,7 @@ void Backend::begin() {
 bool Backend::readConfig(Config &config) {
     HTTPClient hc;
     char urlBuffer[128];
-    sprintf(urlBuffer, "https://fabcess.moehritz.de/backend/config/%s", deviceMac.c_str());
+    sprintf(urlBuffer, "https://fabx.cloud/backend/config/%s/%s", deviceMac.c_str(), secret.c_str());
 
     Serial.print("Backend::readConfig Url=");
     Serial.println(urlBuffer);
@@ -108,7 +108,7 @@ bool Backend::readConfig(Config &config) {
 bool Backend::toolsWithAccess(MFRC522::Uid cardId) {
     HTTPClient hc;
     char urlBuffer[128];
-    sprintf(urlBuffer, "https://fabcess.moehritz.de/backend/access/%s/0x%02X%02X%02X%02X", deviceMac.c_str(), cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3]);
+    sprintf(urlBuffer, "https://fabx.cloud/backend/access/%s/0x%02X%02X%02X%02X", deviceMac.c_str(), cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3]);
 
     Serial.print("Backend::toolsWithAccess Url=");
     Serial.println(urlBuffer);
