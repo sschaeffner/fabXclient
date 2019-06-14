@@ -2,6 +2,7 @@
 #define BACKEND_H
 
 #include <Arduino.h>
+#include <M5Stack.h>
 #include <WiFi.h>
 #include <MFRC522.h>
 #include "config.h"

@@ -6,6 +6,8 @@ const char* password = "FabLab2016";
 wl_status_t wifiStatus = WL_IDLE_STATUS;
 unsigned long lastWifiReconnect = 0;
 
+bool ntpSynced = false;
+
 bool redrawRequest, redrawing;
 
 bool configRead;
@@ -90,6 +92,7 @@ void loop() {
 
 	loop_off();
 	loop_wifi();
+	loop_ntp();
 	loop_config();
 	loop_access();
 
@@ -157,6 +160,25 @@ bool loop_wifi() {
 		}
 
 		return WiFi.status() == WL_CONNECTED;
+	}
+}
+
+void loop_ntp() {
+	if (wifiStatus == WL_CONNECTED && !ntpSynced) {
+		Serial.println("attempting NTP sync...");
+		struct tm local;
+		configTzTime(TZ_INFO, NTP_SERVER);
+		ntpSynced = getLocalTime(&local, 5000);
+		if (ntpSynced) {
+			Serial.println(&local, "NTP: Date: %d.%m.%y Time: %H:%M:%S");
+		}
+		redrawRequest = true;
+	}
+	if (redrawing && !ntpSynced) {
+		M5.Lcd.setTextDatum(CC_DATUM);
+		M5.Lcd.setTextColor(TFT_WHITE);
+		M5.Lcd.setTextSize(3);
+		M5.Lcd.drawString("NTP SYNC...", 160, 120);
 	}
 }
 

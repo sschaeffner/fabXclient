@@ -3,6 +3,8 @@
 
 #define WIFI_RECONNECT_TIME 5000 // how long the ESP should wait until it disables and reenables WiFi if it cannot connect
 #define SECRET_LENGTH 16
+#define NTP_SERVER "de.pool.ntp.org"
+#define TZ_INFO "WEST-1DWEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00" // Western European Time
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -18,6 +20,7 @@
 
 void setup_secret();
 void loop_off();
+void loop_ntp();
 bool loop_wifi();
 void loop_config();
 void loop_access();

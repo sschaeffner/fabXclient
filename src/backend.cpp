@@ -33,6 +33,18 @@ bool Backend::readConfig(Config &config) {
         Serial.printf("Backend::readConfig HTTP Code %i\n", httpCode);
         Serial.printf("configBuffer:\n%s", configBuffer);
 
+        Serial.printf("writing config to SD card...\n");
+        
+        File configFile = SD.open("/config.txt", "w");
+        if (configFile) {
+            configFile.printf(configBuffer);
+            configFile.close();
+            Serial.printf("done writing config to SD card\n");
+        } else {
+            Serial.printf("could not open /config.txt on SD card\n");
+        }
+
+
         char lineDelimiter[] = "\n";
         char *linePtr;
         char *lineSavePtr;
@@ -128,6 +140,19 @@ bool Backend::toolsWithAccess(MFRC522::Uid cardId) {
         char accessBuffer[64];
         strncpy(accessBuffer, payload.c_str(), 64);
         accessBuffer[63] = '\0';
+
+        char accessFileName[64];
+        sprintf(accessFileName, "/0x%02X%02X%02X%02X.txt", cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3]);
+
+        Serial.printf("writing access file to SD card...\n");
+        File accessFile = SD.open(accessFileName, "w");
+        if (accessFile) {
+            accessFile.printf(accessBuffer);
+            accessFile.close();
+            Serial.printf("done writing access file to SD card\n");
+        } else {
+            Serial.printf("could not open access file on SD card\n");
+        }
 
         char lineDelimiter[] = "\n";
         char *linePtr;
