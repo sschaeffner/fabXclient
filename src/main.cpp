@@ -10,6 +10,7 @@ bool ntpSynced = false;
 
 bool redrawRequest, redrawing;
 
+int configReadTry = 0;
 bool configRead;
 
 CardReader cardReader;
@@ -184,7 +185,8 @@ void loop_ntp() {
 
 void loop_config() {
 	if (wifiStatus == WL_CONNECTED && !configRead) {
-		configRead = backend.readConfig(config);
+		++configReadTry;
+		configRead = backend.readConfig(config, configReadTry >= CONFIG_TRIES_BEFORE_CACHE);
 		redrawRequest = true;
 	}
 	if (redrawing) {

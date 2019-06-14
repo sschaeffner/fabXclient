@@ -10,7 +10,7 @@ void Backend::begin() {
     deviceMac = String(macBuffer);
 }
 
-bool Backend::readConfig(Config &config) {
+bool Backend::readConfig(Config &config, bool allowCached) {
     HTTPClient hc;
     char urlBuffer[128];
     sprintf(urlBuffer, "https://fabx.cloud/backend/config/%s/%s", deviceMac.c_str(), secret.c_str());
@@ -24,9 +24,11 @@ bool Backend::readConfig(Config &config) {
 
     Serial.printf("Backend::readConfig httpCode=%i\n", httpCode);
 
+    char configBuffer[512];
+
     if (httpCode == 200) {
         String payload = hc.getString();
-        char configBuffer[512];
+        
         strncpy(configBuffer, payload.c_str(), 512);
         configBuffer[511] = '\0';
 
@@ -43,78 +45,90 @@ bool Backend::readConfig(Config &config) {
         } else {
             Serial.printf("could not open /config.txt on SD card\n");
         }
+    } else {
+        if (!allowCached) return false;
 
+        File configFile = SD.open("/config.txt", "r");
+        if (configFile) {
+            String payload = configFile.readString();
+            Serial.printf("Backend::readConfig from SD card\n");
 
-        char lineDelimiter[] = "\n";
-        char *linePtr;
-        char *lineSavePtr;
+            strncpy(configBuffer, payload.c_str(), 512);
+            configBuffer[511] = '\0';
 
-        linePtr = strtok_r(configBuffer, lineDelimiter, &lineSavePtr);
-        int lineNr = 0;
+            Serial.printf("configBuffer:\n%s", configBuffer);
 
-        char commaDelimiter[] = ",";
-        char *toolPtr;
-        char *toolSavePtr;
-        int toolNr = 0;
-        int toolPNr = 0;
+            configFile.close();
+        } else {
+            Serial.printf("could not open /config.txt on SD card\n");
+            return false;
+        }
+    }
 
-        Serial.println("=== CONFIG ===");
+    char lineDelimiter[] = "\n";
+    char *linePtr;
+    char *lineSavePtr;
 
-        while (linePtr != NULL) {
-            if (lineNr == 0) {
-                config.deviceName += linePtr;
-                Serial.printf("Device Name: %s\n", linePtr);
-            } else {
-                //tool configuration: tool_id,pin_id,tool_type,tool_name
-                toolPtr = strtok_r(linePtr, commaDelimiter, &toolSavePtr);
+    linePtr = strtok_r(configBuffer, lineDelimiter, &lineSavePtr);
+    int lineNr = 0;
 
-                toolPNr = 0;
-                while (toolPtr != NULL) {
-                    switch (toolPNr) {
-                        case 0:
-                            Serial.printf("toolId: %s\n", toolPtr);
-                            config.toolIds[toolNr] = atoi(toolPtr);
-                            break;
-                        case 1:
-                            Serial.printf("- pinId: %s\n", toolPtr);
-                            config.toolPins[toolNr] = atoi(toolPtr);
-                            break;
-                        case 2:
-                            Serial.print("- toolType: ");
-                            if (strcmp(toolPtr, "UNLOCK") == 0) {
-                                config.toolModes[toolNr] = UNLOCK;
-                                Serial.println("UNLOCK");
-                            } else if (strcmp(toolPtr, "KEEP") == 0) {
-                                config.toolModes[toolNr] = KEEP;
-                                Serial.println("KEEP");
-                            }
-                            break;
-                        case 3:
-                            Serial.printf("- toolName: %s\n", toolPtr);
-                            config.toolNames[toolNr] += toolPtr;
-                            break;
-                    }
+    char commaDelimiter[] = ",";
+    char *toolPtr;
+    char *toolSavePtr;
+    int toolNr = 0;
+    int toolPNr = 0;
 
-                    ++toolPNr;
-                    ++config.toolAmount;
-                    toolPtr = strtok_r(NULL, commaDelimiter, &toolSavePtr);
+    Serial.println("=== CONFIG ===");
+
+    while (linePtr != NULL) {
+        if (lineNr == 0) {
+            config.deviceName += linePtr;
+            Serial.printf("Device Name: %s\n", linePtr);
+        } else {
+            //tool configuration: tool_id,pin_id,tool_type,tool_name
+            toolPtr = strtok_r(linePtr, commaDelimiter, &toolSavePtr);
+
+            toolPNr = 0;
+            while (toolPtr != NULL) {
+                switch (toolPNr) {
+                    case 0:
+                        Serial.printf("toolId: %s\n", toolPtr);
+                        config.toolIds[toolNr] = atoi(toolPtr);
+                        break;
+                    case 1:
+                        Serial.printf("- pinId: %s\n", toolPtr);
+                        config.toolPins[toolNr] = atoi(toolPtr);
+                        break;
+                    case 2:
+                        Serial.print("- toolType: ");
+                        if (strcmp(toolPtr, "UNLOCK") == 0) {
+                            config.toolModes[toolNr] = UNLOCK;
+                            Serial.println("UNLOCK");
+                        } else if (strcmp(toolPtr, "KEEP") == 0) {
+                            config.toolModes[toolNr] = KEEP;
+                            Serial.println("KEEP");
+                        }
+                        break;
+                    case 3:
+                        Serial.printf("- toolName: %s\n", toolPtr);
+                        config.toolNames[toolNr] += toolPtr;
+                        break;
                 }
 
-                ++toolNr;
+                ++toolPNr;
+                ++config.toolAmount;
+                toolPtr = strtok_r(NULL, commaDelimiter, &toolSavePtr);
             }
 
-            ++lineNr;
-            linePtr = strtok_r(NULL, lineDelimiter, &lineSavePtr);
+            ++toolNr;
         }
-        Serial.println("==============");
 
-        return true;
-    } else {
-        String payload = hc.getString();
-        Serial.printf("Backend::readConfig HTTP Code %i, Payload:\n", httpCode);
-        Serial.println(payload);
-        return false;
+        ++lineNr;
+        linePtr = strtok_r(NULL, lineDelimiter, &lineSavePtr);
     }
+    Serial.println("==============");
+
+    return true;
 }
 
 bool Backend::toolsWithAccess(MFRC522::Uid cardId) {
@@ -131,18 +145,19 @@ bool Backend::toolsWithAccess(MFRC522::Uid cardId) {
 
     Serial.printf("Backend::toolsWithAccess httpCode=%i\n", httpCode);
 
+    char accessBuffer[64];
+
+    char accessFileName[64];
+    sprintf(accessFileName, "/0x%02X%02X%02X%02X.txt", cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3]);
+
     if (httpCode == 200) {
         String payload = hc.getString();
         
         Serial.printf("Backend::toolsWithAccess HTTP Code %i, Payload:\n", httpCode);
         Serial.println(payload);
 
-        char accessBuffer[64];
         strncpy(accessBuffer, payload.c_str(), 64);
         accessBuffer[63] = '\0';
-
-        char accessFileName[64];
-        sprintf(accessFileName, "/0x%02X%02X%02X%02X.txt", cardId.uidByte[0], cardId.uidByte[1], cardId.uidByte[2], cardId.uidByte[3]);
 
         Serial.printf("writing access file to SD card...\n");
         File accessFile = SD.open(accessFileName, "w");
@@ -153,29 +168,43 @@ bool Backend::toolsWithAccess(MFRC522::Uid cardId) {
         } else {
             Serial.printf("could not open access file on SD card\n");
         }
-
-        char lineDelimiter[] = "\n";
-        char *linePtr;
-
-        linePtr = strtok(accessBuffer, lineDelimiter);
-
-        accessToolsAmount = 0;
-        int accessToolNr = 0;
-        while (linePtr != NULL) {
-            accessTools[accessToolNr] = atoi(linePtr);
-            ++accessToolsAmount;
-            ++accessToolNr;
-
-            linePtr = strtok(NULL, lineDelimiter);
-        }
-
-        return true;
     } else {
         String payload = hc.getString();
         Serial.printf("Backend::toolsWithAccess HTTP Code %i\nPayload: ", httpCode);
         Serial.println(payload);
-        return false;
+
+        File accessFile = SD.open(accessFileName, "r");
+        if (accessFile) {
+            String payload = accessFile.readString();
+            Serial.printf("Backend::readConfig from SD card\n");
+
+            strncpy(accessBuffer, payload.c_str(), 63);
+            accessBuffer[63] = '\0';
+
+            Serial.printf("accessBuffer:\n%s", accessBuffer);
+
+            accessFile.close();
+        } else {
+            Serial.printf("could not open /config.txt on SD card\n");
+            return false;
+        }
     }
+
+    char lineDelimiter[] = "\n";
+    char *linePtr;
+
+    linePtr = strtok(accessBuffer, lineDelimiter);
+
+    accessToolsAmount = 0;
+    int accessToolNr = 0;
+    while (linePtr != NULL) {
+        accessTools[accessToolNr] = atoi(linePtr);
+        ++accessToolsAmount;
+        ++accessToolNr;
+
+        linePtr = strtok(NULL, lineDelimiter);
+    }
+    return true;
 }
 
 String Backend::split(String data, char separator, int index) {

@@ -5,6 +5,7 @@
 #define SECRET_LENGTH 16
 #define NTP_SERVER "de.pool.ntp.org"
 #define TZ_INFO "WEST-1DWEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00" // Western European Time
+#define CONFIG_TRIES_BEFORE_CACHE 3
 
 #include <Arduino.h>
 #include <SPI.h>

@@ -15,7 +15,7 @@ class Backend {
         int accessToolsAmount;
 
         void begin();
-        bool readConfig(Config &config);
+        bool readConfig(Config &config, bool allowCached);
         bool toolsWithAccess(MFRC522::Uid cardId);
         
     private:
