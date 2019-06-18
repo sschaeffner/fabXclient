@@ -25,7 +25,36 @@ int lastTimeToolSelectorChanged = 0;
 int toolSelector;
 int accessToolId;
 
-void setup() {
+void scan(){
+	Serial.println(" Scanning I2C Addresses");
+	uint8_t cnt=0;
+	for(uint8_t i=0;i<128;i++){
+		Wire.beginTransmission(i);
+		uint8_t ec = Wire.endTransmission(true);
+		if(ec == 0){
+			if(i<16)Serial.print('0');
+			Serial.print(i,HEX);
+			cnt++;
+		}
+		else Serial.print("..");
+		Serial.print(' ');
+		if ((i & 0x0f) == 0x0f)Serial.println();
+	}
+	Serial.print("Scan Completed, ");
+	Serial.print(cnt);
+	Serial.println(" I2C Devices found.");
+}
+
+void setup(){
+	Serial.begin(115200);
+	Wire.begin();
+	scan();
+	Serial.println();
+}
+
+void loop(){}
+
+void setup2() {
 	Serial.begin(115200);
 	Serial.println("Hello World");
 
@@ -83,7 +112,7 @@ void setup_secret() {
 	EEPROM.end();
 }
 
-void loop() {
+void loop2() {
 	M5.update();
 
 	redrawing = redrawRequest;
