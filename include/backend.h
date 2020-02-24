@@ -5,6 +5,7 @@
 #include <M5Stack.h>
 #include <WiFi.h>
 #include <MFRC522.h>
+#include <HTTPClient.h>
 #include "deviceconfig.h"
 
 class Backend {
@@ -22,6 +23,7 @@ class Backend {
     private:
         String split(String data, char separator, int index);
         void arrayToString(byte array[], unsigned int len, char buffer[]);
+        void configureHttpClient(HTTPClient *hc);
 };
 
 #endif //BACKEND_H
