@@ -32,6 +32,7 @@ int toolNrToToolIndex(int toolNr);
 
 void playRecSound();
 void playRecSoundT(void * param);
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 
 enum State { IDLE, CARD_ID_KNOWN, ACCESS_KNOWN, CHOOSE_TOOL, UNLOCK_TOOL, KEEP_CARD, KEEP_CARD_STILL, CHECK_CARD };
 

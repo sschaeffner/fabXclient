@@ -163,13 +163,16 @@ bool Backend::toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecr
     String auth = base64::encode(deviceMac + ":" + secret);
     hc.addHeader("Authorization", "Basic " + auth);
 
+    long before = millis();
     int httpCode = hc.GET();
+    long diff = millis() - before;
+    Serial.printf("Backend::toolsWithAccess delta t=%ld\n", diff);
 
     Serial.printf("Backend::toolsWithAccess httpCode=%i\n", httpCode);
 
     char accessBuffer[64];
 
-    String accessFileName = uidString + String(".txt");
+    String accessFileName = String("/") + uidString + String(".txt");
 
     if (httpCode == 200) {
         String payload = hc.getString();
@@ -180,7 +183,7 @@ bool Backend::toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecr
         strncpy(accessBuffer, payload.c_str(), 64);
         accessBuffer[63] = '\0';
 
-        Serial.printf("writing access file to SD card...\n");
+        Serial.printf("writing access file to SD card (%s)...\n", accessFileName.c_str());
         File accessFile = SD.open(accessFileName, "w");
         if (accessFile) {
             accessFile.printf(accessBuffer);
@@ -283,6 +286,6 @@ void Backend::arrayToString(byte array[], unsigned int len, char buffer[]){
 }
 
 void Backend::configureHttpClient(HTTPClient *hc) {
-    hc->setTimeout(5000);
-    hc->setConnectTimeout(5000);
+    hc->setTimeout(1000);
+    hc->setConnectTimeout(2000);
 }

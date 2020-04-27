@@ -13,6 +13,9 @@ bool redrawRequest, redrawing;
 int configReadTry = 0;
 bool configRead;
 
+int bgImageReadTry = 0;
+bool bgImageRead;
+
 CardReader cardReader;
 Config config;
 Backend backend;
@@ -67,6 +70,7 @@ void setup() {
 	} else {
 		Serial.println("SD Card begin NOT successful");
 	}
+	listDir(SD, "/", 5);
 
 	//M5.Speaker.tone(440, 100);
 
@@ -114,6 +118,7 @@ void setup() {
 	btStop();
 
 	configRead = false;
+	bgImageRead = false;
 
 	Serial.printf("deviceMac:%s\n", backend.deviceMac.c_str());
 
@@ -181,6 +186,7 @@ bool loop_wifi() {
 	wl_status_t status = WiFi.status();
 	if (status != wifiStatus) {
 		redrawRequest = true;
+		Serial.printf("wifi status change from %i to %i\n", wifiStatus, status);
 		wifiStatus = status;
 	}
 
@@ -191,7 +197,7 @@ bool loop_wifi() {
 		M5.Lcd.drawString(backend.deviceMac.c_str(), 320, 0);
 	}
 
-	if (WiFi.status() == WL_CONNECTED) {
+	if (wifiStatus == WL_CONNECTED) {
 		if (redrawing) {
 			M5.Lcd.setTextColor(TFT_GREEN);
 			M5.Lcd.setTextDatum(TR_DATUM);
@@ -249,9 +255,21 @@ void loop_ntp() {
 void loop_config() {
 	if (wifiStatus == WL_CONNECTED && !configRead) {
 		++configReadTry;
+		Serial.printf("configReadTry=%i...\n", configReadTry);
 		configRead = backend.readConfig(config, configReadTry >= CONFIG_TRIES_BEFORE_CACHE);
-		backend.downloadBgImage(config);
-		redrawRequest = true;
+		if (configRead) {
+			redrawRequest = true;
+		}
+		Serial.printf("configRead=%i\n", configRead);
+	}
+	if (wifiStatus == WL_CONNECTED && !bgImageRead && bgImageReadTry <= BG_IMAGE_MAX_TRIES) {
+		++bgImageReadTry;
+		Serial.printf("bgImageReadTry=%i...\n", bgImageReadTry);
+		bgImageRead = backend.downloadBgImage(config);
+		if (bgImageRead) {
+			redrawRequest = true;
+		}
+		Serial.printf("bgImageRead=%i\n", bgImageRead);
 	}
 	if (redrawing) {
 		if (configRead) {
@@ -645,5 +663,36 @@ void lcd_dump_byte_array(byte *buffer, byte bufferSize) {
 	for (byte i = 0; i < bufferSize; i++) {
         M5.Lcd.print(buffer[i] < 0x10 ? " 0" : " ");
         M5.Lcd.print(buffer[i], HEX);
+    }
+}
+
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels) {
+    Serial.printf("Listing directory: %s\n", dirname);
+
+    File root = fs.open(dirname);
+    if(!root){
+        Serial.println("Failed to open directory");
+        return;
+    }
+    if(!root.isDirectory()){
+        Serial.println("Not a directory");
+        return;
+    }
+
+    File file = root.openNextFile();
+    while(file){
+        if(file.isDirectory()){
+            Serial.print("  DIR : ");
+            Serial.println(file.name());
+            if(levels){
+                listDir(fs, file.name(), levels -1);
+            }
+        } else {
+            Serial.print("  FILE: ");
+            Serial.print(file.name());
+            Serial.print("  SIZE: ");
+            Serial.println(file.size());
+        }
+        file = root.openNextFile();
     }
 }
