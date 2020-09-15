@@ -58,12 +58,22 @@ void i2cscan(){
 }
 
 void setup() {
+	M5.begin();
+
+	delay(50);
+
 	Serial.begin(115200);
 	Serial.println("Hello World");
 
-	WiFi.begin(ssid, password);
 	SPI.begin();
-	M5.begin();
+
+	WiFi.begin(ssid, password);
+	esp_err_t wifi_success = esp_wifi_set_ps(WIFI_PS_NONE);
+	if (wifi_success == ESP_OK) {
+		Serial.println("WiFi set to no powersaving");
+	} else {
+		Serial.println("Error when trying to set WiFi to no powersaving");
+	}
 
 	if (SD.begin(TFCARD_CS_PIN, SPI, 40000000)) {
 		Serial.println("SD Card begin successful");

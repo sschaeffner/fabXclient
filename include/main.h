@@ -6,6 +6,7 @@
 #include <M5Stack.h>
 #include <WiFi.h>
 #include <esp32-hal-bt.c>
+#include <esp_wifi.h>
 #include <EEPROM.h>
 #include <MFRC522.h>
 #include <Adafruit_MCP23008.h>
