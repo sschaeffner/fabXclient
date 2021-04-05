@@ -9,17 +9,19 @@ void Backend::begin() {
     char macBuffer[13];
     sprintf(macBuffer, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     deviceMac = String(macBuffer);
+
+    hc.setReuse(true);
+    hc.setTimeout(1000);
+    hc.setConnectTimeout(2000);
 }
 
 bool Backend::readConfig(Config &config, bool allowCached) {
-    HTTPClient hc;
     String url = config.backendUrl + deviceMac + "/config";
 
     Serial.print("Backend::readConfig Url=");
     Serial.println(url);
 
     hc.begin(url);
-    configureHttpClient(&hc);
 
     String auth = base64::encode(deviceMac + ":" + secret);
     Serial.printf("Backend::readConfig secret=%s\n", secret.c_str());
@@ -144,8 +146,6 @@ bool Backend::readConfig(Config &config, bool allowCached) {
 }
 
 bool Backend::toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecret[]) {
-    HTTPClient hc;
-
     char uidString[32];
     arrayToString(cardId.uidByte, 7, uidString);
 
@@ -158,7 +158,6 @@ bool Backend::toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecr
     Serial.println(url);
 
     hc.begin(url);
-    configureHttpClient(&hc);
 
     String auth = base64::encode(deviceMac + ":" + secret);
     hc.addHeader("Authorization", "Basic " + auth);
@@ -236,9 +235,7 @@ bool Backend::downloadBgImage(Config &config) {
     if (bgFile) {
         Serial.println("Downloading Background image...");
 
-        HTTPClient hc;
         hc.begin(config.bgImageUrl);
-        configureHttpClient(&hc);
         
         Serial.printf("Background image url: %s\n", config.bgImageUrl.c_str());
 
@@ -283,9 +280,4 @@ void Backend::arrayToString(byte array[], unsigned int len, char buffer[]){
         buffer[i*2+1] = nib2  < 0xA ? '0' + nib2  : 'A' + nib2  - 0xA;
     }
     buffer[len*2] = '\0';
-}
-
-void Backend::configureHttpClient(HTTPClient *hc) {
-    hc->setTimeout(1000);
-    hc->setConnectTimeout(2000);
 }
