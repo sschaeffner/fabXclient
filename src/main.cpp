@@ -166,6 +166,26 @@ void setup_secret() {
 	EEPROM.end();
 }
 
+bool wsSetup = false;
+websockets::WebsocketsClient client;
+
+void onEventsCallback(websockets::WebsocketsEvent event, String data) {
+    if(event == websockets::WebsocketsEvent::ConnectionOpened) {
+        Serial.println("Connnection Opened");
+    } else if(event == websockets::WebsocketsEvent::ConnectionClosed) {
+        Serial.println("Connnection Closed");
+    } else if(event == websockets::WebsocketsEvent::GotPing) {
+        Serial.println("Got a Ping!");
+    } else if(event == websockets::WebsocketsEvent::GotPong) {
+        Serial.println("Got a Pong!");
+    }
+}
+
+void onMessageCallback(websockets::WebsocketsMessage message) {
+    Serial.print("Got Message: ");
+    Serial.println(message.data());
+}
+
 void loop() {
 	M5.update();
 
@@ -177,8 +197,34 @@ void loop() {
 	loop_bg();
 	loop_wifi();
 	loop_ntp();
-	loop_config();
-	loop_access();
+	// loop_config();
+	// loop_access();
+
+	if (wifiStatus == WL_CONNECTED) {
+		if (!wsSetup) {
+			Serial.println("WS Setup...");
+
+			client.onMessage(onMessageCallback);
+    		client.onEvent(onEventsCallback);
+			
+			bool r = client.connect("http://192.168.0.214:8080/echo");
+
+			if (r) {
+				Serial.println("WS r=true");
+			} else {
+				Serial.println("WS r=false");
+			}
+
+			client.send("hello from esp");
+
+			client.ping();
+
+			wsSetup = true;
+			Serial.println("WS Setup done");
+		} else {
+			client.poll();
+		}
+	}
 
 	delay(1);
 	yield();
@@ -198,6 +244,8 @@ bool loop_wifi() {
 		redrawRequest = true;
 		Serial.printf("wifi status change from %i to %i\n", wifiStatus, status);
 		wifiStatus = status;
+
+		Serial.println(WiFi.localIP());
 	}
 
 	if (redrawing) {

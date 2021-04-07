@@ -2,6 +2,7 @@
 #define MAIN_H
 
 #include <Arduino.h>
+#include <ArduinoWebsockets.h>
 #include <SPI.h>
 #include <M5Stack.h>
 #include <WiFi.h>
