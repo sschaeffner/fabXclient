@@ -551,7 +551,7 @@ void loop_access() {
 			} else { // card not found
 				M5.Lcd.clearDisplay(TFT_RED);
 
-				int secsLeft = 10 - (millis() - lastTimeCardRead) / 1000;
+				int secsLeft = (config.toolTimes[accessToolIndex] + 3000) / 1000 - (millis() - lastTimeCardRead) / 1000;
 
 				char countDown[5];
 				sprintf(countDown, "%i", secsLeft);
@@ -564,7 +564,7 @@ void loop_access() {
 				countDownDisplayed = true;
 			}
 		}
-		if (millis() > lastTimeCardRead + 10000) {
+		if (millis() > lastTimeCardRead + config.toolTimes[accessToolIndex] + 3000) {
 			state = CHECK_CARD;
 		}
 	}
