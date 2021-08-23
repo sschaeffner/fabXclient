@@ -7,7 +7,7 @@
 #define MAX_TOOLS 16
 
 enum Mode { KEEP, UNLOCK };
-enum IdleState { IDLE_LOW, IDLE_HIGH};
+enum IdleState { IDLE_LOW, IDLE_HIGH };
 
 struct Config {
     String deviceName;
@@ -22,8 +22,8 @@ struct Config {
     int toolPins[MAX_TOOLS];
     Mode toolModes[MAX_TOOLS];
     String toolNames[MAX_TOOLS];
-    int toolTime[MAX_TOOLS];
-    String toolIdleState[MAX_TOOLS];  //IDLE_LOW, IDLE_HIGH
+    int toolTimes[MAX_TOOLS];
+    String toolIdleStates[MAX_TOOLS];  //IDLE_LOW, IDLE_HIGH
 };
 
 #endif // DEVICECONFIG_H
