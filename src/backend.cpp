@@ -128,13 +128,13 @@ bool Backend::readConfig(Config &config, bool allowCached) {
                         config.toolTimes[toolNr] = atoi(toolPtr);
                         Serial.printf("%s\n", toolPtr);
                         break;
-                    case 4://idlestate
+                    case 4: //idlestate
                         Serial.printf("- idlestate: ");
-                        if(strcmp(toolPtr, "IDLE_HIGH")== 0){
+                        if(strcmp(toolPtr, "IDLE_HIGH") == 0){
                             config.toolIdleStates[toolNr] = IDLE_HIGH;
                             Serial.printf("%s\n", toolPtr);
                         }
-                        else if(strcmp(toolPtr, "IDLE_LOW")==0){
+                        else if(strcmp(toolPtr, "IDLE_LOW") == 0){
                             config.toolIdleStates[toolNr] = IDLE_LOW;
                             Serial.printf("%s\n", toolPtr);
                         }
