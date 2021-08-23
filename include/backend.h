@@ -21,9 +21,9 @@ class Backend {
         bool toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecret[]);
         
     private:
+        HTTPClient hc;
         String split(String data, char separator, int index);
         void arrayToString(byte array[], unsigned int len, char buffer[]);
-        void configureHttpClient(HTTPClient *hc);
 };
 
 #endif //BACKEND_H
