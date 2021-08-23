@@ -488,7 +488,7 @@ void loop_access() {
 		M5.Lcd.setTextSize(3);
 		M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
 
-		delay(200);
+		delay(config.toolTimes[accessToolIndex]);
 
 		gpio1.writeGPIO(0xFF);
 		
