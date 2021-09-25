@@ -1,18 +1,18 @@
 #ifndef CARDREADER_H
 #define CARDREADER_H
 
-#define SS_PIN 2
+#define I2CADDR 0x28
 #define RST_PIN 5
 
 #include <Arduino.h>
-#include <MFRC522.h>
+#include <MFRC522_i2c.h>
 #include <M5Stack.h>
 
 #include "conf.h"
 
 class CardReader {
     public:
-        CardReader() : mfrc522(SS_PIN, RST_PIN) {};
+        CardReader() : mfrc522(I2CADDR) {};
         MFRC522::Uid uid;
         byte cardSecret[32];
 
@@ -21,7 +21,7 @@ class CardReader {
 
     private:
         MFRC522 mfrc522;
-        MFRC522::StatusCode status; 
+        byte status; 
         MFRC522::MIFARE_Key key;
 
         byte secretKey[16] = PICC_PSK;

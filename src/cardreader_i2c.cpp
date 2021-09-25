@@ -1,4 +1,4 @@
-#include "cardreader.h"
+#include "cardreader_i2c.h"
 
 int CardReader::begin() {
 	key.keyByte[0] = 0xFF;
@@ -13,7 +13,7 @@ int CardReader::begin() {
 	delayMicroseconds(2); // 8.8.1 Reset timing requirements says about 100ns. Let us be generous: 2μsl
 	digitalWrite(RST_PIN, HIGH);
 
-    mfrc522.PCD_Init(SS_PIN, RST_PIN);
+    mfrc522.PCD_Init();
 
 	byte v = mfrc522.PCD_ReadRegister(MFRC522::VersionReg);
 	// When 0x00 or 0xFF is returned, communication probably failed
@@ -33,7 +33,7 @@ boolean CardReader::initCardReader() {
     digitalWrite(RST_PIN, HIGH);
 
     // init PCD
-    mfrc522.PCD_Init(SS_PIN, RST_PIN);
+    mfrc522.PCD_Init();
 
     // check PCD software version (0x92 is normal)
     byte v = mfrc522.PCD_ReadRegister(MFRC522::VersionReg);
@@ -102,7 +102,7 @@ boolean CardReader::wakeupAndSelect() {
 
     status = mfrc522.PICC_Select(&uid, 0);
     debug("Select status = ");
-    debug(MFRC522::GetStatusCodeName(status));
+    debug(mfrc522.GetStatusCodeName(status));
 
     if (status != MFRC522::STATUS_OK) {
         endCard();
@@ -118,7 +118,7 @@ boolean CardReader::wakeupAndSelect() {
 boolean CardReader::authWithSecretKey() {
     status = mfrc522.MIFARE_UL_C_Auth(secretKey);
     debug("auth with secret key = ");
-    debug(MFRC522::GetStatusCodeName(status));
+    debug(mfrc522.GetStatusCodeName(status));
     if (status != MFRC522::STATUS_OK) {
         endCard();
         return false;
@@ -149,7 +149,7 @@ boolean CardReader::readCardSecret() {
             }
 		} else {
             debug("Read status = ");
-            debug(MFRC522::GetStatusCodeName(status));
+            debug(mfrc522.GetStatusCodeName(status));
             endCard();
             return false;
         }

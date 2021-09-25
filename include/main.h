@@ -8,7 +8,7 @@
 #include <esp32-hal-bt.c>
 #include <esp_wifi.h>
 #include <EEPROM.h>
-#include <MFRC522.h>
+#include <MFRC522_i2c.h>
 #include <Adafruit_MCP23008.h>
 
 #include "AudioFileSourceSD.h"
@@ -17,7 +17,7 @@
 
 #include "conf.h"
 #include "deviceconfig.h"
-#include "cardreader.h"
+#include "cardreader_i2c.h"
 #include "backend.h"
 
 void setup_secret();
