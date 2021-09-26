@@ -1,0 +1,16 @@
+#ifndef CONF_H
+#define CONF_H
+
+#define WIFI_SSID "WiFi SSID"
+#define WIFI_PSK "WiFi Password"
+#define PICC_PSK {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x00} // 16 byte PSK to authenticate to PIC
+#define BACKEND_URL "https://fabx-access.somewhere/clientApi/v1/"
+
+#define WIFI_RECONNECT_TIME 5000 // how long the ESP should wait until it disables and reenables WiFi if it cannot connect (in milliseconds)
+#define SECRET_LENGTH 16 // length of device secret for authentication to backend
+#define NTP_SERVER "de.pool.ntp.org" // ntp server for time sync
+#define TZ_INFO "WEST-1DWEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00" // Western European Time
+#define CONFIG_TRIES_BEFORE_CACHE 3 // how many requests are sent to the backend before falling back to the local cache
+#define BG_IMAGE_MAX_TRIES 5 // how many requests are sent to read the background image
+
+#endif // CONF_H
