@@ -177,7 +177,10 @@ void loop() {
 	loop_bg();
 	loop_wifi();
 	loop_ntp();
-	loop_config();
+	if (wifiStatus == WL_CONNECTED) {
+		backend.loop();
+	}
+	// loop_config();
 	// loop_access();
 
 	delay(1);

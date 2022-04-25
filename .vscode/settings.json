@@ -5,6 +5,8 @@
     },
     "C_Cpp.intelliSenseEngineFallback": "Enabled",
     "files.associations": {
-        "esp32-hal-bt.c": "cpp"
+        "esp32-hal-bt.c": "cpp",
+        "*.tcc": "cpp",
+        "algorithm": "cpp"
     }
 }

@@ -10,21 +10,56 @@ void Backend::begin() {
     sprintf(macBuffer, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     deviceMac = String(macBuffer);
 
-    hc.setReuse(true);
-    hc.setTimeout(1000);
-    hc.setConnectTimeout(2000);
+    webSocket.begin("10.100.204.104", 8080, "/api/v1/device/ws");
+    webSocket.onEvent(Backend::websocketEvent);
+    webSocket.setAuthorization("aabbcc000000", "supersecret");
 }
 
 void Backend::loop() {
-
+    webSocket.loop();
 }
 
 bool Backend::readConfig(Config &config, bool allowCached) {
     Serial.printf("reading config...\n");
 
 
-
     return true;
+}
+
+void Backend::websocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+    switch(type) {
+        case WStype_DISCONNECTED:
+            Serial.printf("[WSc] Disconnected!\n");
+            break;
+        case WStype_CONNECTED:
+            {
+                Serial.printf("[WSc] Connected to url: %s\n",  payload);
+
+			    // send message to server when Connected
+				// webSocket.sendTXT("Connected");
+            }
+            break;
+        case WStype_TEXT:
+            Serial.printf("[WSc] Got TEXT: %s\n", payload);
+
+			// send message to server
+			// webSocket.sendTXT("message here");
+            break;
+        case WStype_BIN:
+            Serial.printf("[WSc] Got BIN length: %u\n", length);
+            // hexdump(payload, length);
+
+            // send data to server
+            // webSocket.sendBIN(payload, length);
+            break;
+		case WStype_ERROR:			
+		case WStype_FRAGMENT_TEXT_START:
+		case WStype_FRAGMENT_BIN_START:
+		case WStype_FRAGMENT:
+		case WStype_FRAGMENT_FIN:
+            Serial.printf("[WSc] Other Event");
+			break;
+    }
 }
 
 // bool Backend::readConfig(Config &config, bool allowCached) {
@@ -174,87 +209,89 @@ bool Backend::readConfig(Config &config, bool allowCached) {
 // }
 
 bool Backend::toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecret[]) {
-    char uidString[32];
-    arrayToString(cardId.uidByte, 7, uidString);
+    // char uidString[32];
+    // arrayToString(cardId.uidByte, 7, uidString);
 
-    char cardSecretString[128];
-    arrayToString(cardSecret, 32, cardSecretString);
+    // char cardSecretString[128];
+    // arrayToString(cardSecret, 32, cardSecretString);
 
-    String url = config.backendUrl + deviceMac + "/permissions/" + String(uidString) + "/" + String(cardSecretString);
+    // String url = config.backendUrl + deviceMac + "/permissions/" + String(uidString) + "/" + String(cardSecretString);
 
-    Serial.print("Backend::toolsWithAccess Url=");
-    Serial.println(url);
+    // Serial.print("Backend::toolsWithAccess Url=");
+    // Serial.println(url);
 
-    hc.begin(url);
+    // hc.begin(url);
 
-    String auth = base64::encode(deviceMac + ":" + secret);
-    hc.addHeader("Authorization", "Basic " + auth);
+    // String auth = base64::encode(deviceMac + ":" + secret);
+    // hc.addHeader("Authorization", "Basic " + auth);
 
-    long before = millis();
-    int httpCode = hc.GET();
-    long diff = millis() - before;
-    Serial.printf("Backend::toolsWithAccess delta t=%ld\n", diff);
+    // long before = millis();
+    // int httpCode = hc.GET();
+    // long diff = millis() - before;
+    // Serial.printf("Backend::toolsWithAccess delta t=%ld\n", diff);
 
-    Serial.printf("Backend::toolsWithAccess httpCode=%i\n", httpCode);
+    // Serial.printf("Backend::toolsWithAccess httpCode=%i\n", httpCode);
 
-    char accessBuffer[64];
+    // char accessBuffer[64];
 
-    String accessFileName = String("/") + uidString + String(".txt");
+    // String accessFileName = String("/") + uidString + String(".txt");
 
-    if (httpCode == 200) {
-        String payload = hc.getString();
+    // if (httpCode == 200) {
+    //     String payload = hc.getString();
         
-        Serial.printf("Backend::toolsWithAccess HTTP Code %i, Payload:\n", httpCode);
-        Serial.println(payload);
+    //     Serial.printf("Backend::toolsWithAccess HTTP Code %i, Payload:\n", httpCode);
+    //     Serial.println(payload);
 
-        strncpy(accessBuffer, payload.c_str(), 64);
-        accessBuffer[63] = '\0';
+    //     strncpy(accessBuffer, payload.c_str(), 64);
+    //     accessBuffer[63] = '\0';
 
-        Serial.printf("writing access file to SD card (%s)...\n", accessFileName.c_str());
-        File accessFile = SD.open(accessFileName, "w");
-        if (accessFile) {
-            accessFile.printf(accessBuffer);
-            accessFile.close();
-            Serial.printf("done writing access file to SD card\n");
-        } else {
-            Serial.printf("could not open access file on SD card\n");
-        }
-    } else {
-        String payload = hc.getString();
-        Serial.printf("Backend::toolsWithAccess HTTP Code %i\nPayload: ", httpCode);
-        Serial.println(payload);
+    //     Serial.printf("writing access file to SD card (%s)...\n", accessFileName.c_str());
+    //     File accessFile = SD.open(accessFileName, "w");
+    //     if (accessFile) {
+    //         accessFile.printf(accessBuffer);
+    //         accessFile.close();
+    //         Serial.printf("done writing access file to SD card\n");
+    //     } else {
+    //         Serial.printf("could not open access file on SD card\n");
+    //     }
+    // } else {
+    //     String payload = hc.getString();
+    //     Serial.printf("Backend::toolsWithAccess HTTP Code %i\nPayload: ", httpCode);
+    //     Serial.println(payload);
 
-        File accessFile = SD.open(accessFileName, "r");
-        if (accessFile) {
-            String payload = accessFile.readString();
-            Serial.printf("Backend::readConfig from SD card\n");
+    //     File accessFile = SD.open(accessFileName, "r");
+    //     if (accessFile) {
+    //         String payload = accessFile.readString();
+    //         Serial.printf("Backend::readConfig from SD card\n");
 
-            strncpy(accessBuffer, payload.c_str(), 63);
-            accessBuffer[63] = '\0';
+    //         strncpy(accessBuffer, payload.c_str(), 63);
+    //         accessBuffer[63] = '\0';
 
-            Serial.printf("accessBuffer:\n%s", accessBuffer);
+    //         Serial.printf("accessBuffer:\n%s", accessBuffer);
 
-            accessFile.close();
-        } else {
-            Serial.printf("could not open /config.txt on SD card\n");
-            return false;
-        }
-    }
+    //         accessFile.close();
+    //     } else {
+    //         Serial.printf("could not open /config.txt on SD card\n");
+    //         return false;
+    //     }
+    // }
 
-    char lineDelimiter[] = "\n";
-    char *linePtr;
+    // char lineDelimiter[] = "\n";
+    // char *linePtr;
 
-    linePtr = strtok(accessBuffer, lineDelimiter);
+    // linePtr = strtok(accessBuffer, lineDelimiter);
 
-    accessToolsAmount = 0;
-    int accessToolNr = 0;
-    while (linePtr != NULL) {
-        accessTools[accessToolNr] = atoi(linePtr);
-        ++accessToolsAmount;
-        ++accessToolNr;
+    // accessToolsAmount = 0;
+    // int accessToolNr = 0;
+    // while (linePtr != NULL) {
+    //     accessTools[accessToolNr] = atoi(linePtr);
+    //     ++accessToolsAmount;
+    //     ++accessToolNr;
 
-        linePtr = strtok(NULL, lineDelimiter);
-    }
+    //     linePtr = strtok(NULL, lineDelimiter);
+    // }
+    // return true;
+
     return true;
 }
 
