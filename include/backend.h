@@ -2,7 +2,8 @@
 #define BACKEND_H
 
 #include <Arduino.h>
-#include <M5Stack.h>
+#include <SD.h>
+// #include <M5Stack.h>
 #include <WiFi.h>
 #include <MFRC522.h>
 #include <HTTPClient.h>
@@ -16,6 +17,7 @@ class Backend {
         int accessToolsAmount;
 
         void begin();
+        void loop();
         bool readConfig(Config &config, bool allowCached);
         bool downloadBgImage(Config &config);
         bool toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecret[]);

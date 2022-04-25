@@ -6,7 +6,7 @@
 
 #include <Arduino.h>
 #include <MFRC522.h>
-#include <M5Stack.h>
+// #include <M5Stack.h>
 
 #include "conf.h"
 

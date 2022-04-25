@@ -32,10 +32,10 @@ int accessToolId;
 
 bool countDownDisplayed = false;
 
-AudioGeneratorWAV *wav;
-AudioFileSourceSD *file;
-AudioOutputI2S *out;
-TaskHandle_t taskRecSound;
+// AudioGeneratorWAV *wav;
+// AudioFileSourceSD *file;
+// AudioOutputI2S *out;
+// TaskHandle_t taskRecSound;
 
 void i2cscan(){
 	Serial.println(" Scanning I2C Addresses");
@@ -58,7 +58,7 @@ void i2cscan(){
 }
 
 void setup() {
-	M5.begin();
+	//M5.begin();
 
 	delay(50);
 
@@ -75,14 +75,14 @@ void setup() {
 		Serial.println("Error when trying to set WiFi to no powersaving");
 	}
 
-	if (SD.begin(TFCARD_CS_PIN, SPI, 40000000)) {
-		Serial.println("SD Card begin successful");
-	} else {
-		Serial.println("SD Card begin NOT successful");
-	}
-	listDir(SD, "/", 5);
+	// if (SD.begin(TFCARD_CS_PIN, SPI, 40000000)) {
+	// 	Serial.println("SD Card begin successful");
+	// } else {
+	// 	Serial.println("SD Card begin NOT successful");
+	// }
+	// listDir(SD, "/", 5);
 
-	//M5.Speaker.tone(440, 100);
+	////M5.Speaker.tone(440, 100);
 
 	Wire.begin();
 	i2cscan();
@@ -135,9 +135,9 @@ void setup() {
 	redrawRequest = true;
 	redrawing = false;
 
-	M5.Lcd.fillCircle(80, 120, 20, TFT_LIGHTGREY);
-	M5.Lcd.fillCircle(160, 120, 20, TFT_LIGHTGREY);
-	M5.Lcd.fillCircle(240, 120, 20, TFT_LIGHTGREY);
+	//M5.Lcd.fillCircle(80, 120, 20, TFT_LIGHTGREY);
+	//M5.Lcd.fillCircle(160, 120, 20, TFT_LIGHTGREY);
+	//M5.Lcd.fillCircle(240, 120, 20, TFT_LIGHTGREY);
 }
 
 void setup_secret() {
@@ -167,18 +167,18 @@ void setup_secret() {
 }
 
 void loop() {
-	M5.update();
+	//M5.update();
 
 	redrawing = redrawRequest;
 	redrawRequest = false;
 
-	if (redrawing) M5.Lcd.clearDisplay();
+	if (redrawing) //M5.Lcd.clearDisplay();
 
 	loop_bg();
 	loop_wifi();
 	loop_ntp();
 	loop_config();
-	loop_access();
+	// loop_access();
 
 	delay(1);
 	yield();
@@ -187,7 +187,7 @@ void loop() {
 void loop_bg() {
 	if (state == IDLE) {
 		if (redrawing) {
-			M5.Lcd.drawBmpFile(SD, "/bg.bmp", 0, 0);
+			//M5.Lcd.drawBmpFile(SD, "/bg.bmp", 0, 0);
 		}
 	}
 }
@@ -201,27 +201,27 @@ bool loop_wifi() {
 	}
 
 	if (redrawing) {
-		M5.Lcd.setTextColor(TFT_WHITE);
-		M5.Lcd.setTextDatum(TR_DATUM);
-		M5.Lcd.setTextSize(1);
-		M5.Lcd.drawString(backend.deviceMac.c_str(), 320, 0);
+		//M5.Lcd.setTextColor(TFT_WHITE);
+		//M5.Lcd.setTextDatum(TR_DATUM);
+		//M5.Lcd.setTextSize(1);
+		//M5.Lcd.drawString(backend.deviceMac.c_str(), 320, 0);
 	}
 
 	if (wifiStatus == WL_CONNECTED) {
 		if (redrawing) {
-			M5.Lcd.setTextColor(TFT_GREEN);
-			M5.Lcd.setTextDatum(TR_DATUM);
-			M5.Lcd.setTextSize(1);
-			M5.Lcd.drawString("WiFi CONN", 320, 12);
+			//M5.Lcd.setTextColor(TFT_GREEN);
+			//M5.Lcd.setTextDatum(TR_DATUM);
+			//M5.Lcd.setTextSize(1);
+			//M5.Lcd.drawString("WiFi CONN", 320, 12);
 		}
 		
 		return true;
 	} else {
 		if (redrawing) {
-			M5.Lcd.setTextColor(TFT_RED);
-			M5.Lcd.setTextDatum(TR_DATUM);
-			M5.Lcd.setTextSize(1);
-			M5.Lcd.drawString("WiFi DISC", 320, 12);
+			//M5.Lcd.setTextColor(TFT_RED);
+			//M5.Lcd.setTextDatum(TR_DATUM);
+			//M5.Lcd.setTextSize(1);
+			//M5.Lcd.drawString("WiFi DISC", 320, 12);
 		}
 
 		Serial.println("WiFi not connected.");
@@ -255,10 +255,10 @@ void loop_ntp() {
 		redrawRequest = true;
 	}
 	if (redrawing && !ntpSynced) {
-		M5.Lcd.setTextDatum(CC_DATUM);
-		M5.Lcd.setTextColor(TFT_WHITE);
-		M5.Lcd.setTextSize(3);
-		M5.Lcd.drawString("NTP SYNC...", 160, 120);
+		//M5.Lcd.setTextDatum(CC_DATUM);
+		//M5.Lcd.setTextColor(TFT_WHITE);
+		//M5.Lcd.setTextSize(3);
+		//M5.Lcd.drawString("NTP SYNC...", 160, 120);
 	}
 }
 
@@ -283,15 +283,15 @@ void loop_config() {
 	}
 	if (redrawing) {
 		if (configRead) {
-			M5.Lcd.setTextColor(0xFC82);
-			M5.Lcd.setTextDatum(TL_DATUM);
-			M5.Lcd.setTextSize(2);
-			M5.Lcd.drawString(config.deviceName, 0, 0);
+			//M5.Lcd.setTextColor(0xFC82);
+			//M5.Lcd.setTextDatum(TL_DATUM);
+			//M5.Lcd.setTextSize(2);
+			//M5.Lcd.drawString(config.deviceName, 0, 0);
 		} else {
-			M5.Lcd.setTextDatum(CC_DATUM);
-			M5.Lcd.setTextColor(TFT_WHITE);
-			M5.Lcd.setTextSize(3);
-			M5.Lcd.drawString("SELF CONFIG", 160, 120);
+			//M5.Lcd.setTextDatum(CC_DATUM);
+			//M5.Lcd.setTextColor(TFT_WHITE);
+			//M5.Lcd.setTextSize(3);
+			//M5.Lcd.drawString("SELF CONFIG", 160, 120);
 		}
 	}
 }
@@ -306,10 +306,10 @@ void loop_access() {
 		}
 		
 
-		M5.Lcd.setTextColor(TFT_WHITE);
-		M5.Lcd.setTextDatum(TL_DATUM);
-		M5.Lcd.setTextSize(1);
-		M5.Lcd.drawString(cardIdBuffer, 0, 20);
+		//M5.Lcd.setTextColor(TFT_WHITE);
+		//M5.Lcd.setTextDatum(TL_DATUM);
+		//M5.Lcd.setTextSize(1);
+		//M5.Lcd.drawString(cardIdBuffer, 0, 20);
 	}
 
 	if (state == IDLE) {
@@ -334,9 +334,9 @@ void loop_access() {
     }
 
     if (state == CARD_ID_KNOWN) {
-		M5.Lcd.fillCircle(80, 120, 20, TFT_WHITE);
-		M5.Lcd.fillCircle(160, 120, 20, TFT_WHITE);
-		M5.Lcd.fillCircle(240, 120, 20, TFT_WHITE);
+		//M5.Lcd.fillCircle(80, 120, 20, TFT_WHITE);
+		//M5.Lcd.fillCircle(160, 120, 20, TFT_WHITE);
+		//M5.Lcd.fillCircle(240, 120, 20, TFT_WHITE);
 
 		playRecSound();
 
@@ -376,17 +376,17 @@ void loop_access() {
 			lastTimeToolSelectorChanged = millis();
 			Serial.printf("accessToolsAmount %i\n", backend.accessToolsAmount);
 		} else {
-			/*M5.Speaker.begin();
-			M5.Speaker.tone(1047, 1);
+			/*//M5.Speaker.begin();
+			//M5.Speaker.tone(1047, 1);
 			delay(150);
-			M5.Speaker.tone(784, 1);
+			//M5.Speaker.tone(784, 1);
 			delay(150);
-			M5.Speaker.tone(659, 1);
+			//M5.Speaker.tone(659, 1);
 			delay(150);
-			M5.Speaker.tone(523, 1);
+			//M5.Speaker.tone(523, 1);
 			delay(150);
-			M5.Speaker.mute();
-			M5.Speaker.end(); */
+			//M5.Speaker.mute();
+			//M5.Speaker.end(); */
 
 			Serial.printf("accessToolsAmount zero\n");
 			state = IDLE;
@@ -396,32 +396,32 @@ void loop_access() {
 
 	if (state == CHOOSE_TOOL) {
 		bool listRedraw = false;
-		if (M5.BtnA.wasPressed()) {
-			if (toolSelector > 0) --toolSelector;
-			//redrawRequest = true;
-			listRedraw = true;
-			lastTimeToolSelectorChanged = millis();
-		}
-		if (M5.BtnB.wasPressed()) {
-			if (toolSelector < backend.accessToolsAmount - 1) ++toolSelector;
-			//redrawRequest = true;
-			listRedraw = true;
-			lastTimeToolSelectorChanged = millis();
-		}
-		if (M5.BtnC.wasPressed()) {
-			accessToolId = backend.accessTools[toolSelector];
-			int accessToolIndex = toolNrToToolIndex(accessToolId);
+		// if (M5.BtnA.wasPressed()) {
+		// 	if (toolSelector > 0) --toolSelector;
+		// 	//redrawRequest = true;
+		// 	listRedraw = true;
+		// 	lastTimeToolSelectorChanged = millis();
+		// }
+		// if (M5.BtnB.wasPressed()) {
+		// 	if (toolSelector < backend.accessToolsAmount - 1) ++toolSelector;
+		// 	//redrawRequest = true;
+		// 	listRedraw = true;
+		// 	lastTimeToolSelectorChanged = millis();
+		// }
+		// if (M5.BtnC.wasPressed()) {
+		// 	accessToolId = backend.accessTools[toolSelector];
+		// 	int accessToolIndex = toolNrToToolIndex(accessToolId);
 
-			switch (config.toolModes[accessToolIndex]) {
-				case KEEP:
-					state = KEEP_CARD;
-					break;
-				case UNLOCK:
-					state = UNLOCK_TOOL;
-					break;
-			}
-			redrawRequest = true;
-		}
+		// 	switch (config.toolModes[accessToolIndex]) {
+		// 		case KEEP:
+		// 			state = KEEP_CARD;
+		// 			break;
+		// 		case UNLOCK:
+		// 			state = UNLOCK_TOOL;
+		// 			break;
+		// 	}
+		// 	redrawRequest = true;
+		// }
 
 		if (millis() > lastTimeToolSelectorChanged + 10000) {
 			state = IDLE;
@@ -429,15 +429,15 @@ void loop_access() {
 		}
 
 		if (redrawing || listRedraw) {
-			M5.Lcd.setTextDatum(BC_DATUM);
-			M5.Lcd.setTextColor(TFT_WHITE);
-			M5.Lcd.setTextSize(1);
-			M5.Lcd.drawString("[up]", 65, 240);
-			M5.Lcd.drawString("[down]", 160, 240);
-			M5.Lcd.drawString("[select]", 255, 240);
+			//M5.Lcd.setTextDatum(BC_DATUM);
+			//M5.Lcd.setTextColor(TFT_WHITE);
+			//M5.Lcd.setTextSize(1);
+			//M5.Lcd.drawString("[up]", 65, 240);
+			//M5.Lcd.drawString("[down]", 160, 240);
+			//M5.Lcd.drawString("[select]", 255, 240);
 		
-			M5.Lcd.setTextSize(3);
-			int fontHeight = M5.Lcd.fontHeight(M5.Lcd.textfont);
+			//M5.Lcd.setTextSize(3);
+			int fontHeight = //M5.Lcd.fontHeight(//M5.Lcd.textfont);
 			fontHeight = fontHeight + (fontHeight >> 1);// fontHeight *= 1.5
 
 			int nrActualTools = 0;
@@ -448,17 +448,17 @@ void loop_access() {
 
 				if (toolIndex >= 0) {
 					if (i == toolSelector) {
-						M5.Lcd.setTextColor(TFT_GREEN);
+						//M5.Lcd.setTextColor(TFT_GREEN);
 					} else {
-						M5.Lcd.setTextColor(TFT_WHITE);
+						//M5.Lcd.setTextColor(TFT_WHITE);
 					}
 
 					if (nrActualTools < 5) {
-						M5.Lcd.setTextDatum(TL_DATUM);
-						M5.Lcd.drawString(config.toolNames[toolIndex], 0, 36 + (fontHeight * i));
+						//M5.Lcd.setTextDatum(TL_DATUM);
+						//M5.Lcd.drawString(config.toolNames[toolIndex], 0, 36 + (fontHeight * i));
 					} else {
-						M5.Lcd.setTextDatum(TR_DATUM);
-						M5.Lcd.drawString(config.toolNames[toolIndex], 320, 36 + (fontHeight * (i - 5)));
+						//M5.Lcd.setTextDatum(TR_DATUM);
+						//M5.Lcd.drawString(config.toolNames[toolIndex], 320, 36 + (fontHeight * (i - 5)));
 					}
 					
 					nrActualTools++;
@@ -482,11 +482,11 @@ void loop_access() {
 
 		gpio1.digitalWrite(accessToolPin - 1, LOW);
 
-		M5.Lcd.clearDisplay();
-		M5.Lcd.setTextDatum(CC_DATUM);
-		M5.Lcd.setTextColor(TFT_GREEN);
-		M5.Lcd.setTextSize(3);
-		M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
+		//M5.Lcd.clearDisplay();
+		//M5.Lcd.setTextDatum(CC_DATUM);
+		//M5.Lcd.setTextColor(TFT_GREEN);
+		//M5.Lcd.setTextSize(3);
+		//M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
 
 		delay(config.toolTimes[accessToolIndex]);
 
@@ -519,10 +519,10 @@ void loop_access() {
 		int accessToolIndex = toolNrToToolIndex(accessToolId);
 
 		if (redrawing) {
-			M5.Lcd.setTextDatum(CC_DATUM);
-			M5.Lcd.setTextColor(TFT_GREEN);
-			M5.Lcd.setTextSize(3);
-			M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
+			//M5.Lcd.setTextDatum(CC_DATUM);
+			//M5.Lcd.setTextColor(TFT_GREEN);
+			//M5.Lcd.setTextSize(3);
+			//M5.Lcd.drawString(config.toolNames[accessToolIndex], 160, 120);
 		}
 
 		if (millis() > lastTimeCardRead + 3000) {
@@ -549,17 +549,17 @@ void loop_access() {
 					countDownDisplayed = false;
 				}
 			} else { // card not found
-				M5.Lcd.clearDisplay(TFT_RED);
+				//M5.Lcd.clearDisplay(TFT_RED);
 
 				int secsLeft = (config.toolTimes[accessToolIndex] + 3000) / 1000 - (millis() - lastTimeCardRead) / 1000;
 
 				char countDown[5];
 				sprintf(countDown, "%i", secsLeft);
 
-				M5.Lcd.setTextDatum(CC_DATUM);
-				M5.Lcd.setTextColor(TFT_BLACK);
-				M5.Lcd.setTextSize(7);
-				M5.Lcd.drawString(countDown, 160, 120);
+				//M5.Lcd.setTextDatum(CC_DATUM);
+				//M5.Lcd.setTextColor(TFT_BLACK);
+				//M5.Lcd.setTextSize(7);
+				//M5.Lcd.drawString(countDown, 160, 120);
 
 				countDownDisplayed = true;
 			}
@@ -611,13 +611,13 @@ int toolNrToToolIndex(int toolNr) {
 }
 
 void playRecSound() {
-	xTaskCreate(
-      playRecSoundT, /* Function to implement the task */
-      "playRecSoundT", /* Name of the task */
-      10000,  /* Stack size in words */
-      NULL,  /* Task input parameter */
-      100,  /* Priority of the task */
-      &taskRecSound);  /* Task handle. */
+	// xTaskCreate(
+    //   playRecSoundT, /* Function to implement the task */
+    //   "playRecSoundT", /* Name of the task */
+    //   10000,  /* Stack size in words */
+    //   NULL,  /* Task input parameter */
+    //   100,  /* Priority of the task */
+    //   &taskRecSound);  /* Task handle. */
 }
 
 void playRecSoundT(void * param) {
@@ -625,36 +625,36 @@ void playRecSoundT(void * param) {
 	//E5 659.25
 	//G5 783.99
 	//C6 1046.50
-	M5.Speaker.begin();
-	M5.Speaker.setVolume(1);
-	M5.Speaker.tone(523, 1);
+	//M5.Speaker.begin();
+	//M5.Speaker.setVolume(1);
+	//M5.Speaker.tone(523, 1);
 	delay(150);
-	M5.Speaker.tone(659, 1);
+	//M5.Speaker.tone(659, 1);
 	delay(150);
-	M5.Speaker.tone(784, 1);
+	//M5.Speaker.tone(784, 1);
 	delay(150);
-	M5.Speaker.tone(1047, 1);
+	//M5.Speaker.tone(1047, 1);
 	delay(150);
-	M5.Speaker.mute();
-	M5.Speaker.end();
+	//M5.Speaker.mute();
+	//M5.Speaker.end();
 
 	vTaskDelete(NULL);
 }
 
 void playRecSoundT2(void * param) {
-	file = new AudioFileSourceSD("/recSound.wav");
-	out = new AudioOutputI2S(0, 1); // Output to builtInDAC
-	out->SetOutputModeMono(true);
-	wav = new AudioGeneratorWAV();
-	wav->begin(file, out);
+	// file = new AudioFileSourceSD("/recSound.wav");
+	// out = new AudioOutputI2S(0, 1); // Output to builtInDAC
+	// out->SetOutputModeMono(true);
+	// wav = new AudioGeneratorWAV();
+	// wav->begin(file, out);
 
-	while (wav->isRunning()) {
-		if (!wav->loop()) wav->stop();
-	}
-	Serial.printf("WAV done\n");
-	wav->stop();
-	out->stop();
-	file->close();
+	// while (wav->isRunning()) {
+	// 	if (!wav->loop()) wav->stop();
+	// }
+	// Serial.printf("WAV done\n");
+	// wav->stop();
+	// out->stop();
+	// file->close();
 
 	vTaskDelete(NULL);
 }
@@ -671,8 +671,8 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
 
 void lcd_dump_byte_array(byte *buffer, byte bufferSize) {
 	for (byte i = 0; i < bufferSize; i++) {
-        M5.Lcd.print(buffer[i] < 0x10 ? " 0" : " ");
-        M5.Lcd.print(buffer[i], HEX);
+        //M5.Lcd.print(buffer[i] < 0x10 ? " 0" : " ");
+        //M5.Lcd.print(buffer[i], HEX);
     }
 }
 

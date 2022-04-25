@@ -2,8 +2,9 @@
 #define MAIN_H
 
 #include <Arduino.h>
+#include <SD.h>
 #include <SPI.h>
-#include <M5Stack.h>
+// #include <M5Stack.h>
 #include <WiFi.h>
 #include <esp32-hal-bt.c>
 #include <esp_wifi.h>
@@ -11,9 +12,9 @@
 #include <MFRC522.h>
 #include <Adafruit_MCP23008.h>
 
-#include "AudioFileSourceSD.h"
-#include "AudioGeneratorWAV.h"
-#include "AudioOutputI2S.h"
+// #include "AudioFileSourceSD.h"
+// #include "AudioGeneratorWAV.h"
+// #include "AudioOutputI2S.h"
 
 #include "conf.h"
 #include "deviceconfig.h"
@@ -33,7 +34,7 @@ int toolNrToToolIndex(int toolNr);
 
 void playRecSound();
 void playRecSoundT(void * param);
-void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
+// void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 
 enum State { IDLE, CARD_ID_KNOWN, ACCESS_KNOWN, CHOOSE_TOOL, UNLOCK_TOOL, KEEP_CARD, KEEP_CARD_STILL, CHECK_CARD };
 
