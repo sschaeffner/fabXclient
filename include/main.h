@@ -38,4 +38,6 @@ void playRecSoundT(void * param);
 
 enum State { IDLE, CARD_ID_KNOWN, ACCESS_KNOWN, CHOOSE_TOOL, UNLOCK_TOOL, KEEP_CARD, KEEP_CARD_STILL, CHECK_CARD };
 
+extern Backend backend;
+
 #endif //MAIN_H

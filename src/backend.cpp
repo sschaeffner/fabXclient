@@ -2,6 +2,8 @@
 #include <HTTPClient.h>
 #include <base64.h>
 
+Backend backend;
+
 void Backend::begin() {
     // read device mac into String
     byte mac[6];
@@ -22,11 +24,35 @@ void Backend::loop() {
 bool Backend::readConfig(Config &config, bool allowCached) {
     Serial.printf("reading config...\n");
 
+    if (!webSocket.sendTXT("{\"type\":\"cloud.fabX.fabXaccess.device.ws.GetConfiguration\",\"commandId\":42}")) {
+        Serial.printf("sending get config failed\n");
+    }
 
     return true;
 }
 
+bool Backend::isConnected() {
+    return webSocket.isConnected();
+}
+
+void Backend::handleUnlockTool(DynamicJsonDocument& response, long commandId) {
+    Serial.printf("handleUnlockTool %i...");
+
+    response["type"] = "cloud.fabX.fabXaccess.device.ws.ToolUnlockResponse";
+    response["commandId"] = commandId;
+
+    char responseString[1024];
+    serializeJson(response, responseString);
+
+    backend.webSocket.sendTXT(responseString);
+}
+
 void Backend::websocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument response(1024);
+
+    DeserializationError deserError;
+
     switch(type) {
         case WStype_DISCONNECTED:
             Serial.printf("[WSc] Disconnected!\n");
@@ -42,15 +68,33 @@ void Backend::websocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         case WStype_TEXT:
             Serial.printf("[WSc] Got TEXT: %s\n", payload);
 
-			// send message to server
-			// webSocket.sendTXT("message here");
+            deserError = deserializeJson(doc, payload);
+
+            if (deserError) {
+                Serial.print(F("deserializeJson() failed: "));
+                Serial.println(deserError.f_str());
+                return;
+            }
+
+            Serial.printf("[WSc] Got message %i type: %s\n", doc["commandId"].as<long>(), doc["type"].as<const char*>());
+
+            if (strcmp(doc["type"].as<const char*>(), "cloud.fabX.fabXaccess.device.ws.UnlockTool") == 0) {
+                const char* toolId = doc["toolId"];
+                Serial.printf("Got UnlockTool %s\n", toolId);
+
+                backend.handleUnlockTool(response, doc["commandId"].as<long>());
+
+            } else if (strcmp(doc["type"].as<const char*>(), "cloud.fabX.fabXaccess.device.ws.ConfigurationResponse") == 0) {
+                // const char* name = doc["name"];
+                // const char* background = doc["background"];
+                // const char* backupBackendUrl = doc["backupBackendUrl"];
+                // const char* attachedTools = doc["attachedTools"]; // TODO actually a map / an object
+                Serial.printf("Got ConfigurationResponse %s %s\n", doc["name"].as<const char*>(), doc["background"].as<const char*>());                
+            }
+
             break;
         case WStype_BIN:
             Serial.printf("[WSc] Got BIN length: %u\n", length);
-            // hexdump(payload, length);
-
-            // send data to server
-            // webSocket.sendBIN(payload, length);
             break;
 		case WStype_ERROR:			
 		case WStype_FRAGMENT_TEXT_START:

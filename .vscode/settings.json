@@ -7,6 +7,8 @@
     "files.associations": {
         "esp32-hal-bt.c": "cpp",
         "*.tcc": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "memory_resource": "cpp",
+        "sstream": "cpp"
     }
 }

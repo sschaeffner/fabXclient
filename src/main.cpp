@@ -18,7 +18,6 @@ bool bgImageRead;
 
 CardReader cardReader;
 Config config;
-Backend backend;
 
 Adafruit_MCP23008 gpio0, gpio1;
 
@@ -179,6 +178,11 @@ void loop() {
 	loop_ntp();
 	if (wifiStatus == WL_CONNECTED) {
 		backend.loop();
+	}
+	if (backend.isConnected() && !configRead && configReadTry < 5) {
+		++configReadTry;
+		Serial.printf("configReadTry=%i...\n", configReadTry);
+		configRead = backend.readConfig(config, configReadTry >= CONFIG_TRIES_BEFORE_CACHE);
 	}
 	// loop_config();
 	// loop_access();

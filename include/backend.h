@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <WebSocketsClient.h>
+#include <ArduinoJson.h>
 #include <MFRC522.h>
 #include <HTTPClient.h>
 #include "deviceconfig.h"
@@ -23,6 +24,8 @@ class Backend {
         bool readConfig(Config &config, bool allowCached);
         bool downloadBgImage(Config &config);
         bool toolsWithAccess(Config &config, MFRC522::Uid cardId, byte cardSecret[]);
+
+        bool isConnected();
         
     private:
         WebSocketsClient webSocket;
@@ -31,6 +34,10 @@ class Backend {
         void arrayToString(byte array[], unsigned int len, char buffer[]);
 
         static void websocketEvent(WStype_t type, uint8_t * payload, size_t length);
+
+        void handleUnlockTool(DynamicJsonDocument& response, long commandId);
 };
+
+extern Backend backend;
 
 #endif //BACKEND_H
