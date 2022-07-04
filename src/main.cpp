@@ -431,10 +431,10 @@ void loop_access() {
 		if (redrawing || listRedraw) {
 			M5.Lcd.setTextDatum(BC_DATUM);
 			M5.Lcd.setTextColor(TFT_WHITE);
-			M5.Lcd.setTextSize(1);
-			M5.Lcd.drawString("[up]", 65, 240);
-			M5.Lcd.drawString("[down]", 160, 240);
-			M5.Lcd.drawString("[select]", 255, 240);
+			M5.Lcd.setTextSize(2);
+			M5.Lcd.drawString("[UP]", 65, 240);
+			M5.Lcd.drawString("[DOWN]", 160, 240);
+			M5.Lcd.drawString("[SELECT]", 255, 240);
 		
 			M5.Lcd.setTextSize(3);
 			int fontHeight = M5.Lcd.fontHeight(M5.Lcd.textfont);
@@ -448,7 +448,7 @@ void loop_access() {
 
 				if (toolIndex >= 0) {
 					if (i == toolSelector) {
-						M5.Lcd.setTextColor(TFT_GREEN);
+						M5.Lcd.setTextColor(TFT_BLACK, TFT_GREEN); // inverse for highlighting
 					} else {
 						M5.Lcd.setTextColor(TFT_WHITE);
 					}
