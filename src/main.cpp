@@ -450,7 +450,7 @@ void loop_access() {
 					if (i == toolSelector) {
 						M5.Lcd.setTextColor(TFT_BLACK, TFT_GREEN); // inverse for highlighting
 					} else {
-						M5.Lcd.setTextColor(TFT_WHITE);
+						M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
 					}
 
 					if (nrActualTools < 5) {
